@@ -40,6 +40,8 @@ export interface Customer {
   zip: string;
   notes: string;
   created_at: string;
+  /** number of tasks at this site; only the /customers endpoints fill it in */
+  task_count?: number | null;
 }
 
 export type TaskCategory =

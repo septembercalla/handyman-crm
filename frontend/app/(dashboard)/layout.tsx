@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
-import { auth } from "@/lib/api/client";
+import { useCurrentUser } from "@/lib/api/hooks";
 
 export default function DashboardLayout({
   children,
@@ -11,14 +11,14 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const [ready, setReady] = useState(false);
+  const { data: user, isPending } = useCurrentUser();
 
   useEffect(() => {
-    if (!auth.me()) router.replace("/login");
-    else setReady(true);
-  }, [router]);
+    if (!isPending && !user) router.replace("/login");
+  }, [isPending, user, router]);
 
-  if (!ready) return <div className="min-h-screen bg-app" />;
+  // blank canvas while the session check is in flight — no layout shift
+  if (isPending || !user) return <div className="min-h-screen bg-app" />;
 
   return (
     <div className="min-h-screen bg-app">

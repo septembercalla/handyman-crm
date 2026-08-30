@@ -10,6 +10,23 @@ from app.schemas import CustomerCreate, CustomerOut, CustomerUpdate, TaskOut
 router = APIRouter(prefix="/customers", tags=["customers"])
 
 
+def _task_count_column():
+    """One correlated subquery instead of fetching every task to count them."""
+    return (
+        select(func.count(Task.id))
+        .where(Task.customer_id == Customer.id)
+        .correlate(Customer)
+        .scalar_subquery()
+        .label("task_count")
+    )
+
+
+def _with_count(customer: Customer, count: int) -> CustomerOut:
+    out = CustomerOut.model_validate(customer)
+    out.task_count = count
+    return out
+
+
 def _get_or_404(db, customer_id: uuid.UUID) -> Customer:
     customer = db.get(Customer, customer_id)
     if not customer:
@@ -18,8 +35,10 @@ def _get_or_404(db, customer_id: uuid.UUID) -> Customer:
 
 
 @router.get("", response_model=list[CustomerOut])
-def list_customers(db: DbSession, _: CurrentUser, search: str | None = None) -> list[Customer]:
-    stmt = select(Customer)
+def list_customers(
+    db: DbSession, _: CurrentUser, search: str | None = None
+) -> list[CustomerOut]:
+    stmt = select(Customer, _task_count_column())
     if search:
         needle = f"%{search.lower()}%"
         stmt = stmt.where(
@@ -32,7 +51,8 @@ def list_customers(db: DbSession, _: CurrentUser, search: str | None = None) -> 
                 func.lower(Customer.zip).like(needle),
             )
         )
-    return list(db.execute(stmt.order_by(Customer.full_name)).scalars().all())
+    rows = db.execute(stmt.order_by(Customer.full_name)).all()
+    return [_with_count(customer, count) for customer, count in rows]
 
 
 @router.post("", response_model=CustomerOut, status_code=status.HTTP_201_CREATED)
@@ -45,8 +65,12 @@ def create_customer(payload: CustomerCreate, db: DbSession, _: CurrentUser) -> C
 
 
 @router.get("/{customer_id}", response_model=CustomerOut)
-def get_customer(customer_id: uuid.UUID, db: DbSession, _: CurrentUser) -> Customer:
-    return _get_or_404(db, customer_id)
+def get_customer(customer_id: uuid.UUID, db: DbSession, _: CurrentUser) -> CustomerOut:
+    customer = _get_or_404(db, customer_id)
+    count = db.execute(
+        select(func.count(Task.id)).where(Task.customer_id == customer.id)
+    ).scalar_one()
+    return _with_count(customer, count)
 
 
 @router.patch("/{customer_id}", response_model=CustomerOut)

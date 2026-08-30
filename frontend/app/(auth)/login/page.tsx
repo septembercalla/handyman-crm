@@ -2,14 +2,17 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { auth } from "@/lib/api/client";
+import { qk } from "@/lib/api/hooks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function LoginPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [email, setEmail] = useState("dispatcher@handyman.crm");
   const [password, setPassword] = useState("demo");
   const [busy, setBusy] = useState(false);
@@ -18,8 +21,10 @@ export default function LoginPage() {
     e.preventDefault();
     setBusy(true);
     try {
-      await auth.login(email, password);
-      router.push("/");
+      const user = await auth.login(email, password);
+      // seed the session cache so the dashboard renders without a second round trip
+      queryClient.setQueryData(qk.currentUser(), user);
+      router.replace("/");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Login failed");
     } finally {
@@ -76,8 +81,8 @@ export default function LoginPage() {
           </Button>
 
           <p className="mt-3 text-[12px] leading-4 text-ink-muted">
-            Demo mode: the backend is not wired up yet — any non-empty email
-            and password will do.
+            Seeded demo account: dispatcher@handyman.crm / demo. The backend
+            must be running on NEXT_PUBLIC_API_URL.
           </p>
         </form>
       </div>

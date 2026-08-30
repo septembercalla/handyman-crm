@@ -80,9 +80,17 @@ export default function TaskDetailPage({
               size="iconSm"
               title="Delete task"
               onClick={async () => {
-                await remove.mutateAsync(task.id);
-                toast.success("Task deleted");
+                // leave the record first: an open detail query would otherwise
+                // refetch the row we are about to delete and land on a 404
                 router.push("/tasks");
+                try {
+                  await remove.mutateAsync(task.id);
+                  toast.success("Task deleted");
+                } catch (e) {
+                  toast.error(
+                    e instanceof Error ? e.message : "Could not delete the task",
+                  );
+                }
               }}
             >
               <Trash2 />

@@ -10,7 +10,9 @@ import {
   Users,
   Wrench,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { auth } from "@/lib/api/client";
+import { useCurrentUser } from "@/lib/api/hooks";
 import { initials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -25,7 +27,8 @@ const NAV = [
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const user = auth.me();
+  const queryClient = useQueryClient();
+  const { data: user } = useCurrentUser();
 
   return (
     <nav
@@ -83,9 +86,10 @@ export function Sidebar() {
         </div>
         <button
           type="button"
-          onClick={() => {
-            auth.logout();
-            router.push("/login");
+          onClick={async () => {
+            await auth.logout().catch(() => undefined);
+            queryClient.clear();
+            router.replace("/login");
           }}
           className="mt-1 flex w-full flex-col items-center justify-center gap-1 rounded-[4px] py-2 text-sidebar-ink transition-colors hover:bg-white/5 hover:text-white"
         >

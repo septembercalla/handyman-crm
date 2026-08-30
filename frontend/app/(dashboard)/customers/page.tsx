@@ -10,19 +10,13 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
-import { useCustomers, useTasks } from "@/lib/api/hooks";
+import { useCustomers } from "@/lib/api/hooks";
 import { cityLine } from "@/lib/format";
 
 export default function CustomersPage() {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const { data: customers, isLoading } = useCustomers({ search });
-  const { data: allTasks } = useTasks({ page_size: 500 });
-
-  const counts = new Map<string, number>();
-  allTasks?.items.forEach((t) =>
-    counts.set(t.customer_id, (counts.get(t.customer_id) ?? 0) + 1),
-  );
 
   return (
     <>
@@ -87,7 +81,7 @@ export default function CustomersPage() {
                         {cityLine(c)}
                       </div>
                     </TD>
-                    <TD className="tnum">{counts.get(c.id) ?? 0}</TD>
+                    <TD className="tnum">{c.task_count ?? 0}</TD>
                   </TR>
                 ))}
               </TBody>

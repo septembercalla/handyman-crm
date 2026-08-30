@@ -4,9 +4,10 @@ An internal dispatcher tool: customer requests, handyman assignment, the day on 
 map, work statuses. The interface reference is SuperDispatch TMS — we copy the
 layout, density and navigation logic, not the brand.
 
-Current state: **frontend done, backend done** (SPEC §10 items 1–8). The frontend
-still runs on its own demo data; wiring it to the API and deploying to Railway are
-the remaining steps.
+Current state: **complete through SPEC §10 item 8, and ready to deploy.** Every
+screen reads and writes through the FastAPI backend and PostgreSQL; no mock data
+is left in the app. Railway config for both services is committed — see
+[DEPLOY.md](DEPLOY.md).
 
 ---
 
@@ -41,7 +42,9 @@ cp .env.local.example .env.local
 npm run dev
 ```
 
-http://localhost:3000 — the sign-in form is pre-filled, press **Sign in**.
+http://localhost:3000 — the sign-in form is pre-filled with the seeded account,
+press **Sign in**. The backend must be running: the frontend has no data of its
+own any more.
 
 ### Both at once
 
@@ -58,7 +61,7 @@ Task** (`dev: all`). Handy root scripts: `npm run db:migrate`, `npm run db:seed`
 
 | Screen | Route | What is inside |
 |---|---|---|
-| Login | `/login` | Sign-in, demo mode (any non-empty email and password) |
+| Login | `/login` | Sign-in against `POST /auth/login`; wrong credentials show an error and stay put |
 | Home | `/` | Status counters, the "Today" and "Needs assignment" tables |
 | Tasks | `/tasks` | Dense table; filters, sorting and pagination **in query params** |
 | Task — create | `/tasks/new` | One page in sections: Task Details · Customer · Schedule & Location · Assignment |
@@ -113,17 +116,20 @@ database is external and reached through `DATABASE_URL`.
 
 ## Data
 
-The frontend still runs on demo data in the browser (`lib/mock/`), while
-`lib/api/client.ts` mirrors the API contract exactly: same paths, params and
-response shapes. Switching over means replacing the function bodies with
-`fetch(...)` against `NEXT_PUBLIC_API_URL` using `credentials: "include"` — the
-signatures, the types (`lib/types.ts`) and every hook (`lib/api/hooks.ts`) stay as
-they are. The backend seed reproduces the same fixtures, so the screens look
-identical before and after the switch.
+There is one source of truth: PostgreSQL, reached through the API. The browser
+holds no application data.
 
-Reset the frontend demo data from the browser console with
-`localStorage.removeItem("handyman-crm:db:v1")`, then reload. Reset the database
-with `npm run db:reset`.
+`lib/api/client.ts` is the only place that talks to the network. Every request
+carries `credentials: "include"` so the httpOnly auth cookies travel with it; no
+token is ever kept in JS. A `401` sends the browser to `/login`, except on
+`POST /auth/login` and `GET /auth/me`, which report the failure to their caller
+instead (otherwise a wrong password would bounce the page instead of showing an
+error). Empty filters are dropped from the query string rather than sent as
+blanks.
+
+Reset the database with `npm run db:reset`. On an empty (production) database,
+create the first account with `python -m app.create_admin` — it writes one user
+and nothing else, unlike the demo seed.
 
 ## Maps
 
@@ -158,7 +164,10 @@ All UI copy, demo data, code comments and docs are in English.
 6. ~~Tasks — create/edit form~~ ✅
 7. ~~Handyman day view~~ ✅ (Google Maps switches on with the key)
 8. ~~Schedule with drag & drop~~ ✅
-9. Deploy to Railway
+9. Deploy to Railway — config committed, steps in [DEPLOY.md](DEPLOY.md); the
+   deploy itself has to be run from an account with Railway access
 
-Between 8 and 9: point the frontend at the API — drop `lib/mock/`, send
-`credentials: "include"`, redirect to `/login` on a 401.
+On Railway the frontend and the API sit on different hosts, so the auth cookie is
+cross-site: the backend switches to `SameSite=None; Secure` when `ENV=production`
+and `CORS_ORIGINS` must name the frontend origin. That whole path was tested
+locally over HTTPS on two separate hostnames before shipping.

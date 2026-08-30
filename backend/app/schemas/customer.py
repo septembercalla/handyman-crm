@@ -35,3 +35,6 @@ class CustomerOut(CustomerBase):
 
     id: uuid.UUID
     created_at: datetime
+    #: number of tasks at this site. Computed by the customers endpoints only —
+    #: stays None where a customer is embedded in another object (e.g. a task).
+    task_count: int | None = None

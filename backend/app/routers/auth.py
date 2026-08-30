@@ -18,14 +18,25 @@ from app.schemas import LoginRequest, TokenPair, UserOut
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-def _set_auth_cookies(response: Response, access: str, refresh: str) -> None:
-    """httpOnly cookies (SPEC §1). Secure only in production so localhost still works."""
-    common = {
+def _cookie_attrs() -> dict:
+    """
+    Attributes shared by every auth cookie (SPEC §1).
+
+    Locally the frontend and the API share the `localhost` site (ports are not
+    part of the same-site check), so `lax` is enough and works without HTTPS.
+    In production they sit on different hosts, which makes the request
+    cross-site — that needs `none` + `secure`, or the browser drops the cookie.
+    """
+    return {
         "httponly": True,
-        "samesite": "lax",
+        "samesite": "none" if settings.is_production else "lax",
         "secure": settings.is_production,
         "path": "/",
     }
+
+
+def _set_auth_cookies(response: Response, access: str, refresh: str) -> None:
+    common = _cookie_attrs()
     response.set_cookie(
         ACCESS_COOKIE, access, max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60, **common
     )
@@ -86,8 +97,11 @@ def refresh_tokens(
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(response: Response) -> None:
-    response.delete_cookie(ACCESS_COOKIE, path="/")
-    response.delete_cookie(REFRESH_COOKIE, path="/")
+    # A cookie is only overwritten when path, secure and samesite match the ones
+    # it was set with — otherwise the browser keeps the original and the session
+    # survives "log out" on a cross-site deployment.
+    for name in (ACCESS_COOKIE, REFRESH_COOKIE):
+        response.delete_cookie(name, **_cookie_attrs())
 
 
 @router.get("/me", response_model=UserOut)

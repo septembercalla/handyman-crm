@@ -7,6 +7,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import {
+  auth,
   customersApi,
   dashboardApi,
   handymenApi,
@@ -16,6 +17,7 @@ import {
 import type { Customer, Task, TaskListParams, TaskStatus } from "@/lib/types";
 
 export const qk = {
+  currentUser: () => ["auth", "me"] as const,
   tasks: (p: TaskListParams) => ["tasks", p] as const,
   task: (id: string) => ["task", id] as const,
   taskHistory: (id: string) => ["task", id, "history"] as const,
@@ -36,6 +38,19 @@ function invalidateTaskScopes(qc: ReturnType<typeof useQueryClient>) {
   ["tasks", "task", "handyman", "customer", "schedule", "unassigned", "dashboard"].forEach(
     (key) => qc.invalidateQueries({ queryKey: [key] }),
   );
+}
+
+/**
+ * The signed-in dispatcher. `null` means no session — the dashboard layout
+ * turns that into a redirect to /login.
+ */
+export function useCurrentUser() {
+  return useQuery({
+    queryKey: qk.currentUser(),
+    queryFn: () => auth.me(),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
 }
 
 export function useTasks(params: TaskListParams) {
@@ -101,7 +116,14 @@ export function useDeleteTask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => tasksApi.remove(id),
-    onSuccess: () => invalidateTaskScopes(qc),
+    onSuccess: () => {
+      // deliberately not touching the ["task", id] query: invalidating or
+      // removing it makes the still-mounted detail page refetch a row that no
+      // longer exists. Its cache entry is stale and gets collected on its own.
+      ["tasks", "handyman", "customer", "schedule", "unassigned", "dashboard"].forEach(
+        (key) => qc.invalidateQueries({ queryKey: [key] }),
+      );
+    },
   });
 }
 
