@@ -1,3 +1,6 @@
+import uuid
+from typing import Literal
+
 from pydantic import BaseModel
 
 from app.schemas.handyman import HandymanOut
@@ -27,3 +30,20 @@ class ScheduleRow(BaseModel):
 
     handyman: HandymanOut
     tasks: list[TaskOut]
+
+
+class TravelLegOut(BaseModel):
+    handyman_id: uuid.UUID
+    from_task_id: uuid.UUID
+    to_task_id: uuid.UUID
+    drive_minutes: int | None = None
+    distance_meters: int | None = None
+    available_minutes: int | None = None
+    conflict_minutes: int | None = None
+    encoded_polyline: str | None = None
+    status: Literal["ok", "conflict", "missing_coordinates", "unavailable"]
+
+
+class ScheduleTravelOut(BaseModel):
+    routes_configured: bool
+    legs: list[TravelLegOut]

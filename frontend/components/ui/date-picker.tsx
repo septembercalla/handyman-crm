@@ -29,12 +29,16 @@ export function DatePicker({
   onChange,
   placeholder = "Pick a date",
   minDate,
+  compact = false,
+  ariaLabel,
   className,
 }: {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   minDate?: string;
+  compact?: boolean;
+  ariaLabel?: string;
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -65,6 +69,7 @@ export function DatePicker({
         <Button
           type="button"
           variant="outline"
+          aria-label={ariaLabel}
           className={cn(
             "w-full justify-start px-2.5 font-normal",
             !value && "text-ink-muted",
@@ -72,7 +77,15 @@ export function DatePicker({
           )}
         >
           <CalendarDays className="text-ink-muted" />
-          {value ? longDate(value) : placeholder}
+          {value
+            ? compact && selected
+              ? selected.toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })
+              : longDate(value)
+            : placeholder}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[292px] p-3">

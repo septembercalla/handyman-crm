@@ -148,3 +148,20 @@ export interface ScheduleRow {
   handyman: Handyman;
   tasks: TaskWithRelations[];
 }
+
+export interface TravelLeg {
+  handyman_id: string;
+  from_task_id: string;
+  to_task_id: string;
+  drive_minutes: number | null;
+  distance_meters: number | null;
+  available_minutes: number | null;
+  conflict_minutes: number | null;
+  encoded_polyline: string | null;
+  status: "ok" | "conflict" | "missing_coordinates" | "unavailable";
+}
+
+export interface ScheduleTravel {
+  routes_configured: boolean;
+  legs: TravelLeg[];
+}

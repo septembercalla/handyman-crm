@@ -53,7 +53,7 @@ Add a service from the same GitHub repo, then in **Settings**:
 | `CORS_ORIGINS` | placeholder for now, e.g. `https://example.com` — fixed in step 5 |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `60` (optional) |
 | `REFRESH_TOKEN_EXPIRE_DAYS` | `14` (optional) |
-| `GOOGLE_MAPS_API_KEY` | optional; without it tasks are saved without coordinates |
+| `GOOGLE_MAPS_SERVER_API_KEY` | optional server-only key for Geocoding API and Routes API; keep it out of `NEXT_PUBLIC_*` |
 
 Do **not** set `PORT` — Railway injects it.
 
@@ -76,6 +76,16 @@ Add a second service from the same repo:
 > `NEXT_PUBLIC_*` values are compiled **into the bundle at build time**. Change
 > one later and you must **Redeploy**, not Restart — a restart keeps the old
 > value baked in.
+
+For the full dispatch map, enable billing and the **Maps JavaScript API**,
+**Geocoding API**, and **Routes API** in Google Cloud. Create separate keys:
+
+- frontend key: restrict by HTTP referrer to the Railway frontend domain (and
+  localhost for development), and restrict the API to Maps JavaScript API;
+- backend key: restrict to the backend environment where possible and allow only
+  Geocoding API and Routes API.
+
+After adding either key in Railway, redeploy the corresponding service.
 
 Deploy, then **Networking → Generate Domain**, e.g.
 `handyman-front-production.up.railway.app`.

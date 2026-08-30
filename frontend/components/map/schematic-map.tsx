@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import type { MapPoint } from "./types";
+import type { MapPoint, MapRoute } from "./types";
 import { cn } from "@/lib/utils";
 
 /**
@@ -12,12 +12,14 @@ import { cn } from "@/lib/utils";
 export function SchematicMap({
   points,
   route = false,
+  routes = [],
   className,
   onSelect,
   selectedId,
 }: {
   points: MapPoint[];
   route?: boolean;
+  routes?: MapRoute[];
   className?: string;
   onSelect?: (id: string) => void;
   selectedId?: string | null;
@@ -93,6 +95,24 @@ export function SchematicMap({
             opacity="0.75"
           />
         )}
+        {layout &&
+          routes.map((mapRoute) => {
+            const routePoints = mapRoute.points
+              .map((point) => layout.find((item) => item.id === point.id))
+              .filter((point) => point !== undefined);
+            return routePoints.length > 1 ? (
+              <polyline
+                key={mapRoute.id}
+                points={routePoints.map((point) => `${point.x},${point.y}`).join(" ")}
+                fill="none"
+                stroke={mapRoute.color}
+                strokeWidth="0.8"
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                opacity="0.8"
+              />
+            ) : null;
+          })}
       </svg>
 
       {layout?.map((p) => {
@@ -106,7 +126,7 @@ export function SchematicMap({
             style={{
               left: `${p.x}%`,
               top: `${p.y}%`,
-              backgroundColor: p.color ?? "#1a6fe0",
+              backgroundColor: p.neutral ? "#6b7785" : (p.color ?? "#1a6fe0"),
             }}
             className={cn(
               "absolute flex size-[22px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white text-[10px] font-bold text-white shadow-[0_1px_4px_rgba(27,39,51,0.35)] transition-transform",

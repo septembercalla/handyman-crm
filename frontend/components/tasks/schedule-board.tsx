@@ -43,10 +43,16 @@ export function ScheduleBoard({
   rows,
   unassigned,
   onAssign,
+  layout = "side",
+  selectedTaskId,
+  onSelectTask,
 }: {
   rows: ScheduleRow[];
   unassigned: TaskWithRelations[];
   onAssign: (taskId: string, handymanId: string | null) => Promise<unknown>;
+  layout?: "side" | "bottom";
+  selectedTaskId?: string | null;
+  onSelectTask?: (id: string) => void;
 }) {
   const [dragging, setDragging] = useState<TaskWithRelations | null>(null);
   const sensors = useSensors(
@@ -102,7 +108,12 @@ export function ScheduleBoard({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
     >
-      <div className="grid gap-4 xl:grid-cols-[1fr_300px]">
+      <div
+        className={cn(
+          "grid gap-4",
+          layout === "side" && "xl:grid-cols-[1fr_300px]",
+        )}
+      >
         <div className="scroll-thin min-w-0 overflow-x-auto rounded-[6px] border border-line bg-surface">
           <div style={{ minWidth: BOARD_WIDTH }}>
             {/* hour ruler */}
@@ -132,13 +143,23 @@ export function ScheduleBoard({
               <EmptyState title="No active handymen" />
             ) : (
               rows.map((row) => (
-                <HandymanRow key={row.handyman.id} row={row} />
+                <HandymanRow
+                  key={row.handyman.id}
+                  row={row}
+                  selectedTaskId={selectedTaskId}
+                  onSelectTask={onSelectTask}
+                />
               ))
             )}
           </div>
         </div>
 
-        <UnassignedPanel tasks={unassigned} />
+        <UnassignedPanel
+          tasks={unassigned}
+          compact={layout === "bottom"}
+          selectedTaskId={selectedTaskId}
+          onSelectTask={onSelectTask}
+        />
       </div>
 
       <DragOverlay dropAnimation={null}>
@@ -153,7 +174,15 @@ export function ScheduleBoard({
   );
 }
 
-function HandymanRow({ row }: { row: ScheduleRow }) {
+function HandymanRow({
+  row,
+  selectedTaskId,
+  onSelectTask,
+}: {
+  row: ScheduleRow;
+  selectedTaskId?: string | null;
+  onSelectTask?: (id: string) => void;
+}) {
   const { setNodeRef, isOver } = useDroppable({ id: `row:${row.handyman.id}` });
   const untimed = row.tasks.filter((t) => !t.time_window_start);
   const timed = row.tasks.filter((t) => t.time_window_start);
@@ -225,6 +254,8 @@ function HandymanRow({ row }: { row: ScheduleRow }) {
               key={task.id}
               task={task}
               color={row.handyman.color}
+              selected={selectedTaskId === task.id}
+              onSelect={onSelectTask}
               style={{
                 left: `${Math.max(0, Math.min(left, 98))}%`,
                 width: `${Math.min(width, 100 - left)}%`,
@@ -237,7 +268,13 @@ function HandymanRow({ row }: { row: ScheduleRow }) {
         {untimed.length > 0 && (
           <div className="relative flex flex-wrap gap-1 p-1.5">
             {untimed.map((t) => (
-              <TaskChip key={t.id} task={t} color={row.handyman.color} />
+              <TaskChip
+                key={t.id}
+                task={t}
+                color={row.handyman.color}
+                selected={selectedTaskId === t.id}
+                onSelect={onSelectTask}
+              />
             ))}
           </div>
         )}
@@ -250,10 +287,14 @@ function TaskBlock({
   task,
   color,
   style,
+  selected,
+  onSelect,
 }: {
   task: TaskWithRelations;
   color: string;
   style: React.CSSProperties;
+  selected?: boolean;
+  onSelect?: (id: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: task.id,
@@ -267,7 +308,9 @@ function TaskBlock({
       className={cn(
         "absolute top-1.5 h-[52px] cursor-grab overflow-hidden rounded-[3px] border border-line border-l-[3px] bg-[#fbfcfd] px-1.5 py-1 active:cursor-grabbing",
         isDragging && "opacity-40",
+        selected && "ring-2 ring-brand ring-offset-1",
       )}
+      onClick={() => onSelect?.(task.id)}
       title={`${task.task_number} · ${task.title} · ${fullAddress(task)}`}
       {...listeners}
       {...attributes}
@@ -283,7 +326,17 @@ function TaskBlock({
   );
 }
 
-function TaskChip({ task, color }: { task: TaskWithRelations; color: string }) {
+function TaskChip({
+  task,
+  color,
+  selected,
+  onSelect,
+}: {
+  task: TaskWithRelations;
+  color: string;
+  selected?: boolean;
+  onSelect?: (id: string) => void;
+}) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: task.id,
     data: { task },
@@ -296,7 +349,9 @@ function TaskChip({ task, color }: { task: TaskWithRelations; color: string }) {
       className={cn(
         "cursor-grab rounded-[3px] border border-line border-l-[3px] bg-[#fbfcfd] px-1.5 py-1 text-[11px] active:cursor-grabbing",
         isDragging && "opacity-40",
+        selected && "ring-2 ring-brand ring-offset-1",
       )}
+      onClick={() => onSelect?.(task.id)}
       title="No time window"
       {...listeners}
       {...attributes}
@@ -307,7 +362,17 @@ function TaskChip({ task, color }: { task: TaskWithRelations; color: string }) {
   );
 }
 
-function UnassignedPanel({ tasks }: { tasks: TaskWithRelations[] }) {
+function UnassignedPanel({
+  tasks,
+  compact = false,
+  selectedTaskId,
+  onSelectTask,
+}: {
+  tasks: TaskWithRelations[];
+  compact?: boolean;
+  selectedTaskId?: string | null;
+  onSelectTask?: (id: string) => void;
+}) {
   const { setNodeRef, isOver } = useDroppable({ id: "unassigned" });
 
   return (
@@ -315,6 +380,7 @@ function UnassignedPanel({ tasks }: { tasks: TaskWithRelations[] }) {
       ref={setNodeRef}
       className={cn(
         "flex max-h-[calc(100vh-140px)] flex-col overflow-hidden rounded-[6px] border border-line bg-surface transition-colors",
+        compact && "max-h-none",
         isOver && "border-brand bg-[#eaf2fd]",
       )}
     >
@@ -329,9 +395,20 @@ function UnassignedPanel({ tasks }: { tasks: TaskWithRelations[] }) {
           description="Drop a task here to take it off a handyman."
         />
       ) : (
-        <div className="scroll-thin flex-1 space-y-1.5 overflow-y-auto p-2">
+        <div
+          className={cn(
+            "scroll-thin flex-1 overflow-auto p-2",
+            compact ? "flex gap-2" : "space-y-1.5",
+          )}
+        >
           {tasks.map((t) => (
-            <UnassignedCard key={t.id} task={t} />
+            <UnassignedCard
+              key={t.id}
+              task={t}
+              compact={compact}
+              selected={selectedTaskId === t.id}
+              onSelect={onSelectTask}
+            />
           ))}
         </div>
       )}
@@ -339,7 +416,17 @@ function UnassignedPanel({ tasks }: { tasks: TaskWithRelations[] }) {
   );
 }
 
-function UnassignedCard({ task }: { task: TaskWithRelations }) {
+function UnassignedCard({
+  task,
+  compact,
+  selected,
+  onSelect,
+}: {
+  task: TaskWithRelations;
+  compact?: boolean;
+  selected?: boolean;
+  onSelect?: (id: string) => void;
+}) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: task.id,
     data: { task },
@@ -351,7 +438,10 @@ function UnassignedCard({ task }: { task: TaskWithRelations }) {
       className={cn(
         "cursor-grab rounded-[4px] border border-line bg-surface p-2 active:cursor-grabbing",
         isDragging && "opacity-40",
+        compact && "w-[240px] shrink-0",
+        selected && "ring-2 ring-brand ring-offset-1",
       )}
+      onClick={() => onSelect?.(task.id)}
       {...listeners}
       {...attributes}
     >

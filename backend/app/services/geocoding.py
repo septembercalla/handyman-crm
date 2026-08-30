@@ -25,13 +25,13 @@ def geocode(
     a warning on the task record.
     """
     address = build_address(street_address, city, state, zip_code)
-    if not settings.GOOGLE_MAPS_API_KEY or not address.strip():
+    if not settings.google_server_api_key or not address.strip():
         return None
 
     try:
         response = httpx.get(
             GEOCODE_URL,
-            params={"address": address, "key": settings.GOOGLE_MAPS_API_KEY},
+            params={"address": address, "key": settings.google_server_api_key},
             timeout=6.0,
         )
         response.raise_for_status()

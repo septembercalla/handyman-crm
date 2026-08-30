@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
 
     GOOGLE_MAPS_API_KEY: str = ""
+    GOOGLE_MAPS_SERVER_API_KEY: str = ""
 
     CORS_ORIGINS: str = "http://localhost:3000"
 
@@ -46,6 +47,11 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.ENV.lower() in {"production", "prod"}
+
+    @property
+    def google_server_api_key(self) -> str:
+        """Dedicated server key, with the old variable kept as a safe fallback."""
+        return self.GOOGLE_MAPS_SERVER_API_KEY or self.GOOGLE_MAPS_API_KEY
 
 
 @lru_cache

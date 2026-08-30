@@ -38,6 +38,7 @@ export const qk = {
   customer: (id: string) => ["customer", id] as const,
   customerTasks: (id: string) => ["customer", id, "tasks"] as const,
   schedule: (date: string) => ["schedule", date] as const,
+  scheduleTravel: (date: string) => ["schedule", "travel", date] as const,
   unassigned: (date?: string) => ["unassigned", date ?? "all"] as const,
   stats: () => ["dashboard", "stats"] as const,
 };
@@ -269,6 +270,14 @@ export function useUnassigned(date?: string) {
   return useQuery({
     queryKey: qk.unassigned(date),
     queryFn: () => scheduleApi.unassigned(date),
+  });
+}
+
+export function useScheduleTravel(date: string) {
+  return useQuery({
+    queryKey: qk.scheduleTravel(date),
+    queryFn: () => scheduleApi.travel(date),
+    retry: false,
   });
 }
 

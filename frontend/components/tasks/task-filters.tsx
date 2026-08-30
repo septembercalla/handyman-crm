@@ -3,6 +3,7 @@
 import { Search, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -90,20 +91,22 @@ export function TaskFilters() {
       />
 
       <div className="flex items-center gap-1.5">
-        <Input
-          type="date"
+        <DatePicker
           value={get("date_from")}
-          onChange={(e) => set("date_from", e.target.value || null)}
+          onChange={(value) => set("date_from", value || null)}
+          placeholder="From date"
+          compact
           className="w-[136px]"
-          aria-label="Date from"
+          ariaLabel="Date from"
         />
         <span className="text-[12px] text-ink-muted">—</span>
-        <Input
-          type="date"
+        <DatePicker
           value={get("date_to")}
-          onChange={(e) => set("date_to", e.target.value || null)}
+          onChange={(value) => set("date_to", value || null)}
+          placeholder="To date"
+          compact
           className="w-[136px]"
-          aria-label="Date to"
+          ariaLabel="Date to"
         />
       </div>
 

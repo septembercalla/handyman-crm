@@ -7,4 +7,12 @@ export interface MapPoint {
   color?: string;
   title: string;
   subtitle?: string;
+  neutral?: boolean;
+}
+
+export interface MapRoute {
+  id: string;
+  color: string;
+  points: MapPoint[];
+  encodedPolylines?: string[];
 }

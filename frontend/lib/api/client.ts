@@ -6,6 +6,7 @@ import type {
   Handyman,
   Paginated,
   ScheduleRow,
+  ScheduleTravel,
   Task,
   TaskListParams,
   TaskStatus,
@@ -358,6 +359,10 @@ export const scheduleApi = {
   /** GET /schedule/unassigned — the pool the dispatcher drags from */
   unassigned(date?: string): Promise<TaskWithRelations[]> {
     return request<TaskWithRelations[]>("/schedule/unassigned", { params: { date } });
+  },
+
+  travel(date: string): Promise<ScheduleTravel> {
+    return request<ScheduleTravel>("/schedule/travel", { params: { date } });
   },
 };
 

@@ -2,7 +2,7 @@
 
 import { GoogleMapView } from "./google-map";
 import { SchematicMap } from "./schematic-map";
-import type { MapPoint } from "./types";
+import type { MapPoint, MapRoute } from "./types";
 import { cn } from "@/lib/utils";
 
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
@@ -14,12 +14,14 @@ const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 export function MapView({
   points,
   route = false,
+  routes = [],
   className,
   onSelect,
   selectedId,
 }: {
   points: MapPoint[];
   route?: boolean;
+  routes?: MapRoute[];
   className?: string;
   onSelect?: (id: string) => void;
   selectedId?: string | null;
@@ -36,7 +38,9 @@ export function MapView({
           apiKey={API_KEY}
           points={points}
           route={route}
+          routes={routes}
           onSelect={onSelect}
+          selectedId={selectedId}
         />
       </div>
     );
@@ -46,6 +50,7 @@ export function MapView({
     <SchematicMap
       points={points}
       route={route}
+      routes={routes}
       className={className}
       onSelect={onSelect}
       selectedId={selectedId}
@@ -53,4 +58,4 @@ export function MapView({
   );
 }
 
-export type { MapPoint };
+export type { MapPoint, MapRoute };

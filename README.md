@@ -143,9 +143,17 @@ the coordinates: points, numbering, route — the UI is fully usable without a k
 As soon as the key lands in `.env.local`, the same screens render real Google Maps
 with no code changes (`components/map/map-view.tsx`).
 
-Server-side, `GOOGLE_MAPS_API_KEY` enables address geocoding on task create and on
-address change. Without it tasks are saved without coordinates and the task record
-shows a warning — nothing fails.
+Server-side, `GOOGLE_MAPS_SERVER_API_KEY` enables address geocoding and planned
+drive estimates between consecutive jobs. `GOOGLE_MAPS_API_KEY` remains a legacy
+fallback. Without a server key, tasks can still be managed and the schedule shows
+the stop order without road travel times.
+
+For production, enable billing plus **Maps JavaScript API**, **Geocoding API** and
+**Routes API** in one Google Cloud project. Use two restricted keys: a browser key
+in `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` restricted to the frontend HTTP referrers and
+Maps JavaScript API, and a server key in `GOOGLE_MAPS_SERVER_API_KEY` restricted to
+the backend service and only Geocoding/Routes APIs. Never put the server key in a
+`NEXT_PUBLIC_*` variable.
 
 ## Design tokens
 
