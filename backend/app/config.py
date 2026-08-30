@@ -1,0 +1,56 @@
+from functools import lru_cache
+
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    """Application settings, read from the environment / .env (SPEC §8)."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+    )
+
+    DATABASE_URL: str = "postgresql+psycopg://postgres:postgres@localhost:5432/handyman"
+
+    SECRET_KEY: str = "change-me-in-production"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 14
+    ALGORITHM: str = "HS256"
+
+    GOOGLE_MAPS_API_KEY: str = ""
+
+    CORS_ORIGINS: str = "http://localhost:3000"
+
+    PORT: int = 8000
+    ENV: str = "development"
+
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def normalize_database_url(cls, v: str) -> str:
+        """
+        Railway hands out `postgresql://...` (and sometimes `postgres://...`).
+        SQLAlchemy needs an explicit driver, so we pin psycopg3 here instead of
+        asking anyone to remember the `+psycopg` suffix.
+        """
+        if v.startswith("postgres://"):
+            v = "postgresql://" + v[len("postgres://") :]
+        if v.startswith("postgresql://"):
+            v = "postgresql+psycopg://" + v[len("postgresql://") :]
+        return v
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
+
+    @property
+    def is_production(self) -> bool:
+        return self.ENV.lower() in {"production", "prod"}
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
+
+
+settings = get_settings()

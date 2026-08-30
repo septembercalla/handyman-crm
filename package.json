@@ -1,0 +1,23 @@
+{
+  "name": "handyman-crm",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Handyman CRM — dispatcher console (frontend + backend)",
+  "scripts": {
+    "dev": "concurrently -n front,back -c blue,green \"npm:dev:front\" \"npm:dev:back\"",
+    "dev:front": "npm --prefix frontend run dev",
+    "dev:back": "cd backend && uv run uvicorn app.main:app --reload --port 8000",
+    "build": "npm --prefix frontend run build",
+    "start": "npm --prefix frontend run start",
+    "lint": "npm --prefix frontend run lint",
+    "lint:back": "cd backend && uv run ruff check .",
+    "install:front": "npm --prefix frontend install",
+    "install:back": "cd backend && uv sync",
+    "db:migrate": "cd backend && uv run alembic upgrade head",
+    "db:seed": "cd backend && uv run python -m app.seed",
+    "db:reset": "cd backend && uv run python -m app.seed --reset"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
