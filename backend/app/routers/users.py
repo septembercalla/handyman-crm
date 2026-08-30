@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from app.core.deps import AdminUser, DbSession
 from app.core.security import hash_password
 from app.models import User, UserRole
-from app.schemas import UserCreate, UserOut, UserUpdate
+from app.schemas import PasswordResetRequest, UserCreate, UserOut, UserUpdate
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -57,6 +57,7 @@ def create_dispatcher(payload: UserCreate, db: DbSession, _: AdminUser) -> User:
         password_hash=hash_password(payload.password),
         role=UserRole.dispatcher,
         is_active=True,
+        must_change_password=True,
     )
     db.add(user)
     _commit_or_email_conflict(db)
@@ -93,9 +94,6 @@ def update_user(
         target.email = email
     if payload.full_name is not None:
         target.full_name = payload.full_name
-    if payload.password is not None:
-        target.password_hash = hash_password(payload.password)
-        target.auth_version += 1
     if payload.is_active is not None:
         if payload.is_active != target.is_active:
             target.auth_version += 1
@@ -106,13 +104,39 @@ def update_user(
     return target
 
 
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_dispatcher(user_id: uuid.UUID, db: DbSession, _: AdminUser) -> None:
+@router.post("/{user_id}/reset-password", response_model=UserOut)
+def reset_dispatcher_password(
+    user_id: uuid.UUID,
+    payload: PasswordResetRequest,
+    db: DbSession,
+    _: AdminUser,
+) -> User:
     target = _get_user_or_404(db, user_id)
     if target.role is not UserRole.dispatcher:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Administrator accounts cannot be deleted",
+            detail="Administrator passwords must be changed from their own account",
+        )
+
+    target.password_hash = hash_password(payload.password)
+    target.must_change_password = True
+    target.auth_version += 1
+    db.commit()
+    db.refresh(target)
+    return target
+
+
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_dispatcher(user_id: uuid.UUID, db: DbSession, admin: AdminUser) -> None:
+    target = _get_user_or_404(db, user_id)
+    if target.role is not UserRole.dispatcher:
+        if target.id == admin.id:
+            detail = "You cannot delete your own administrator account"
+        else:
+            detail = "Administrator accounts cannot be deleted"
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=detail,
         )
 
     db.delete(target)

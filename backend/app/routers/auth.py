@@ -1,11 +1,12 @@
 import uuid
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Cookie, HTTPException, Response, status
 from sqlalchemy import func, select
 
 from app.config import settings
-from app.core.deps import ACCESS_COOKIE, REFRESH_COOKIE, CurrentUser, DbSession
+from app.core.deps import ACCESS_COOKIE, REFRESH_COOKIE, AuthenticatedUser, DbSession
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -14,7 +15,13 @@ from app.core.security import (
     verify_password,
 )
 from app.models import User
-from app.schemas import ChangePasswordRequest, LoginRequest, TokenPair, UserOut
+from app.schemas import (
+    ChangePasswordRequest,
+    CompleteFirstLoginRequest,
+    LoginRequest,
+    TokenPair,
+    UserOut,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -36,14 +43,32 @@ def _cookie_attrs() -> dict:
     }
 
 
-def _set_auth_cookies(response: Response, access: str, refresh: str) -> None:
+def _set_auth_cookies(
+    response: Response, access: str, refresh: str, remember: bool = True
+) -> None:
     common = _cookie_attrs()
-    response.set_cookie(
-        ACCESS_COOKIE, access, max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60, **common
+    access_lifetime = (
+        {"max_age": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60} if remember else {}
     )
-    response.set_cookie(
-        REFRESH_COOKIE, refresh, max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400, **common
+    refresh_lifetime = (
+        {"max_age": settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400} if remember else {}
     )
+    response.set_cookie(ACCESS_COOKIE, access, **access_lifetime, **common)
+    response.set_cookie(REFRESH_COOKIE, refresh, **refresh_lifetime, **common)
+
+
+def _issue_session(response: Response, user: User, remember: bool) -> tuple[str, str]:
+    access = create_access_token(str(user.id), user.auth_version, remember)
+    refresh = create_refresh_token(str(user.id), user.auth_version, remember)
+    _set_auth_cookies(response, access, refresh, remember)
+    return access, refresh
+
+
+def _remember_from_access_token(access_token: str | None) -> bool:
+    if not access_token:
+        return True
+    claims = decode_token(access_token, "access")
+    return bool(claims.get("remember", True)) if claims else True
 
 
 @router.post("/login", response_model=TokenPair)
@@ -59,9 +84,9 @@ def login(payload: LoginRequest, response: Response, db: DbSession) -> TokenPair
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is disabled")
 
-    access = create_access_token(str(user.id), user.auth_version)
-    refresh = create_refresh_token(str(user.id), user.auth_version)
-    _set_auth_cookies(response, access, refresh)
+    user.last_login_at = datetime.now(UTC)
+    db.commit()
+    access, refresh = _issue_session(response, user, payload.remember)
     return TokenPair(access_token=access, refresh_token=refresh, user=UserOut.model_validate(user))
 
 
@@ -90,9 +115,8 @@ def refresh_tokens(
     if claims.get("ver", 0) != user.auth_version:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session revoked")
 
-    access = create_access_token(str(user.id), user.auth_version)
-    new_refresh = create_refresh_token(str(user.id), user.auth_version)
-    _set_auth_cookies(response, access, new_refresh)
+    remember = bool(claims.get("remember", True))
+    access, new_refresh = _issue_session(response, user, remember)
     return TokenPair(
         access_token=access, refresh_token=new_refresh, user=UserOut.model_validate(user)
     )
@@ -108,7 +132,7 @@ def logout(response: Response) -> None:
 
 
 @router.get("/me", response_model=UserOut)
-def me(user: CurrentUser) -> User:
+def me(user: AuthenticatedUser) -> User:
     return user
 
 
@@ -117,7 +141,8 @@ def change_password(
     payload: ChangePasswordRequest,
     response: Response,
     db: DbSession,
-    user: CurrentUser,
+    user: AuthenticatedUser,
+    access_token: Annotated[str | None, Cookie(alias=ACCESS_COOKIE)] = None,
 ) -> None:
     if not verify_password(payload.current_password, user.password_hash):
         raise HTTPException(
@@ -131,8 +156,37 @@ def change_password(
         )
 
     user.password_hash = hash_password(payload.new_password)
+    user.must_change_password = False
     user.auth_version += 1
     db.commit()
-    access = create_access_token(str(user.id), user.auth_version)
-    refresh = create_refresh_token(str(user.id), user.auth_version)
-    _set_auth_cookies(response, access, refresh)
+    remember = _remember_from_access_token(access_token)
+    _issue_session(response, user, remember)
+
+
+@router.post("/complete-first-login", response_model=UserOut)
+def complete_first_login(
+    payload: CompleteFirstLoginRequest,
+    response: Response,
+    db: DbSession,
+    user: AuthenticatedUser,
+    access_token: Annotated[str | None, Cookie(alias=ACCESS_COOKIE)] = None,
+) -> User:
+    if not user.must_change_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="First-login password change is not required",
+        )
+    if verify_password(payload.new_password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be different from the temporary password",
+        )
+
+    user.password_hash = hash_password(payload.new_password)
+    user.must_change_password = False
+    user.auth_version += 1
+    db.commit()
+    db.refresh(user)
+    remember = _remember_from_access_token(access_token)
+    _issue_session(response, user, remember)
+    return user

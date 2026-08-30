@@ -14,6 +14,8 @@ class UserOut(BaseModel):
     full_name: str
     role: UserRole
     is_active: bool
+    must_change_password: bool
+    last_login_at: datetime | None
     created_at: datetime
 
 
@@ -38,7 +40,6 @@ class UserUpdate(BaseModel):
 
     email: EmailStr | None = None
     full_name: str | None = Field(default=None, min_length=2, max_length=255)
-    password: str | None = Field(default=None, min_length=8, max_length=72)
     is_active: bool | None = None
 
     @field_validator("full_name")
@@ -50,3 +51,9 @@ class UserUpdate(BaseModel):
         if len(value) < 2:
             raise ValueError("name must contain at least 2 characters")
         return value
+
+
+class PasswordResetRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    password: str = Field(min_length=8, max_length=72)

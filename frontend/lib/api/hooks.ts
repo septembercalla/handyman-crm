@@ -80,9 +80,7 @@ export function useUpdateUser() {
       payload,
     }: {
       id: string;
-      payload: Partial<Pick<User, "email" | "full_name" | "is_active">> & {
-        password?: string;
-      };
+      payload: Partial<Pick<User, "email" | "full_name" | "is_active">>;
     }) => usersApi.update(id, payload),
     onSuccess: (user) => {
       qc.invalidateQueries({ queryKey: qk.users() });
@@ -90,6 +88,15 @@ export function useUpdateUser() {
         current?.id === user.id ? user : current,
       );
     },
+  });
+}
+
+export function useResetUserPassword() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, password }: { id: string; password: string }) =>
+      usersApi.resetPassword(id, password),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.users() }),
   });
 }
 

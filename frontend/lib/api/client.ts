@@ -150,10 +150,10 @@ interface TokenPair {
 
 export const auth = {
   /** POST /auth/login — the response also sets the httpOnly cookies */
-  async login(email: string, password: string): Promise<User> {
+  async login(email: string, password: string, remember = true): Promise<User> {
     const data = await request<TokenPair>("/auth/login", {
       method: "POST",
-      body: { email: email.trim(), password },
+      body: { email: email.trim(), password, remember },
       skipAuthRedirect: true,
     });
     return data.user;
@@ -192,6 +192,13 @@ export const auth = {
       body: { current_password: currentPassword, new_password: newPassword },
     });
   },
+
+  async completeFirstLogin(newPassword: string): Promise<User> {
+    return request<User>("/auth/complete-first-login", {
+      method: "POST",
+      body: { new_password: newPassword },
+    });
+  },
 };
 
 /* ----------------------------------------------------------------- users */
@@ -207,11 +214,16 @@ export const usersApi = {
 
   update(
     id: string,
-    payload: Partial<Pick<User, "email" | "full_name" | "is_active">> & {
-      password?: string;
-    },
+    payload: Partial<Pick<User, "email" | "full_name" | "is_active">>,
   ): Promise<User> {
     return request<User>(`/users/${id}`, { method: "PATCH", body: payload });
+  },
+
+  resetPassword(id: string, password: string): Promise<User> {
+    return request<User>(`/users/${id}/reset-password`, {
+      method: "POST",
+      body: { password },
+    });
   },
 
   remove(id: string): Promise<void> {

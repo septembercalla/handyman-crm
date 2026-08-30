@@ -18,7 +18,7 @@ _UNAUTHORIZED = HTTPException(
 )
 
 
-def get_current_user(
+def get_authenticated_user(
     db: Annotated[Session, Depends(get_db)],
     access_token: Annotated[str | None, Cookie(alias=ACCESS_COOKIE)] = None,
     authorization: Annotated[str | None, Header()] = None,
@@ -50,8 +50,20 @@ def get_current_user(
     return user
 
 
-CurrentUser = Annotated[User, Depends(get_current_user)]
+AuthenticatedUser = Annotated[User, Depends(get_authenticated_user)]
 DbSession = Annotated[Session, Depends(get_db)]
+
+
+def require_password_change_complete(user: AuthenticatedUser) -> User:
+    if user.must_change_password:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Password change required",
+        )
+    return user
+
+
+CurrentUser = Annotated[User, Depends(require_password_change_complete)]
 
 
 def require_admin(user: CurrentUser) -> User:

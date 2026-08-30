@@ -22,7 +22,11 @@ def verify_password(password: str, password_hash: str) -> bool:
 
 
 def _create_token(
-    subject: str, token_type: TokenType, expires: timedelta, auth_version: int = 0
+    subject: str,
+    token_type: TokenType,
+    expires: timedelta,
+    auth_version: int = 0,
+    remember: bool = True,
 ) -> str:
     now = datetime.now(UTC)
     payload: dict[str, Any] = {
@@ -31,25 +35,32 @@ def _create_token(
         "iat": int(now.timestamp()),
         "exp": int((now + expires).timestamp()),
         "ver": auth_version,
+        "remember": remember,
     }
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
-def create_access_token(subject: str, auth_version: int = 0) -> str:
+def create_access_token(
+    subject: str, auth_version: int = 0, remember: bool = True
+) -> str:
     return _create_token(
         subject,
         "access",
         timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
         auth_version,
+        remember,
     )
 
 
-def create_refresh_token(subject: str, auth_version: int = 0) -> str:
+def create_refresh_token(
+    subject: str, auth_version: int = 0, remember: bool = True
+) -> str:
     return _create_token(
         subject,
         "refresh",
         timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
         auth_version,
+        remember,
     )
 
 

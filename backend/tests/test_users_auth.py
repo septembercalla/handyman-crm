@@ -42,13 +42,13 @@ def test_admin_can_create_edit_disable_and_delete_dispatcher(
     created_user = created.json()
     assert created_user["email"] == "new.dispatcher@example.com"
     assert created_user["role"] == "dispatcher"
+    assert created_user["must_change_password"] is True
 
     updated = client.patch(
         f"/api/v1/users/{created_user['id']}",
         json={
             "full_name": "Renamed Dispatcher",
             "email": "renamed@example.com",
-            "password": "updated-password",
             "is_active": False,
         },
     )
@@ -58,7 +58,7 @@ def test_admin_can_create_edit_disable_and_delete_dispatcher(
 
     disabled_login = TestClient(client.app).post(
         "/api/v1/auth/login",
-        json={"email": "renamed@example.com", "password": "updated-password"},
+        json={"email": "renamed@example.com", "password": "initial-password"},
     )
     assert disabled_login.status_code == 403
     assert disabled_login.json()["detail"] == "User is disabled"
@@ -86,7 +86,7 @@ def test_admin_account_cannot_be_disabled_or_deleted(
 
     deleted = client.delete(f"/api/v1/users/{admin.id}")
     assert deleted.status_code == 400
-    assert "cannot be deleted" in deleted.json()["detail"]
+    assert "cannot delete your own" in deleted.json()["detail"]
 
 
 def test_user_can_change_own_password(client: TestClient, users: dict[str, User]) -> None:
@@ -121,10 +121,11 @@ def test_admin_password_reset_revokes_existing_dispatcher_session(
     login(dispatcher_client, dispatcher.email, "worker-password")
 
     login(client, users["admin"].email, "admin-password")
-    reset = client.patch(
-        f"/api/v1/users/{dispatcher.id}",
+    reset = client.post(
+        f"/api/v1/users/{dispatcher.id}/reset-password",
         json={"password": "replacement-password"},
     )
     assert reset.status_code == 200
+    assert reset.json()["must_change_password"] is True
 
     assert dispatcher_client.get("/api/v1/auth/me").status_code == 401

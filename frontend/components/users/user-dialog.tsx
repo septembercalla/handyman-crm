@@ -22,18 +22,22 @@ export function UserDialog({
   const [fullName, setFullName] = useState(user?.full_name ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
   const [password, setPassword] = useState("");
-  const [isActive, setIsActive] = useState(user?.is_active ?? true);
+  const [confirmPassword, setConfirmPassword] = useState("");
   const busy = createUser.isPending || updateUser.isPending;
 
   function reset() {
     setFullName(user?.full_name ?? "");
     setEmail(user?.email ?? "");
     setPassword("");
-    setIsActive(user?.is_active ?? true);
+    setConfirmPassword("");
   }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    if (!user && password !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
     try {
       if (user) {
         await updateUser.mutateAsync({
@@ -41,8 +45,6 @@ export function UserDialog({
           payload: {
             full_name: fullName,
             email,
-            ...(user.role === "dispatcher" ? { is_active: isActive } : {}),
-            ...(password ? { password } : {}),
           },
         });
         toast.success("User updated");
@@ -97,37 +99,43 @@ export function UserDialog({
               required
             />
           </div>
-          {user?.role !== "admin" && (
-            <div className="space-y-1">
-              <Label htmlFor={`password-${user?.id ?? "new"}`}>
-                {user ? "New password (optional)" : "Temporary password"}
-              </Label>
-              <Input
-                id={`password-${user?.id ?? "new"}`}
-                type="password"
-                autoComplete="new-password"
-                minLength={8}
-                maxLength={72}
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                required={!user}
-              />
-            </div>
-          )}
-          {user?.role === "dispatcher" && (
-            <label className="flex items-center gap-2 text-[13px] text-ink">
-              <input
-                type="checkbox"
-                checked={isActive}
-                onChange={(event) => setIsActive(event.target.checked)}
-                className="size-4 accent-brand"
-              />
-              Account enabled
-            </label>
+          {!user && (
+            <>
+              <div className="space-y-1">
+                <Label htmlFor="temporary-password">Temporary password</Label>
+                <Input
+                  id="temporary-password"
+                  type="password"
+                  autoComplete="new-password"
+                  minLength={8}
+                  maxLength={72}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="confirm-temporary-password">Confirm password</Label>
+                <Input
+                  id="confirm-temporary-password"
+                  type="password"
+                  autoComplete="new-password"
+                  minLength={8}
+                  maxLength={72}
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="new-user-role">Role</Label>
+                <Input id="new-user-role" value="Dispatcher" disabled />
+              </div>
+            </>
           )}
           {user?.role === "admin" && (
             <p className="text-[12px] leading-4 text-ink-muted">
-              Use the Password action in the sidebar to change your own password.
+              Use Change password in the Account menu to update your own password.
             </p>
           )}
           <div className="flex justify-end pt-1">

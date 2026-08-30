@@ -1,4 +1,9 @@
-from app.schemas.auth import ChangePasswordRequest, LoginRequest, TokenPair
+from app.schemas.auth import (
+    ChangePasswordRequest,
+    CompleteFirstLoginRequest,
+    LoginRequest,
+    TokenPair,
+)
 from app.schemas.common import Paginated
 from app.schemas.customer import CustomerCreate, CustomerOut, CustomerUpdate
 from app.schemas.dashboard import DashboardStats, ScheduleRow, StatusCounts
@@ -11,11 +16,12 @@ from app.schemas.task import (
     TaskStatusHistoryOut,
     TaskUpdate,
 )
-from app.schemas.user import UserCreate, UserOut, UserUpdate
+from app.schemas.user import PasswordResetRequest, UserCreate, UserOut, UserUpdate
 
 __all__ = [
     "AssignRequest",
     "ChangePasswordRequest",
+    "CompleteFirstLoginRequest",
     "CustomerCreate",
     "CustomerOut",
     "CustomerUpdate",
@@ -25,6 +31,7 @@ __all__ = [
     "HandymanUpdate",
     "LoginRequest",
     "Paginated",
+    "PasswordResetRequest",
     "ScheduleRow",
     "SetStatusRequest",
     "StatusCounts",

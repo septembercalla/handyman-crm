@@ -6,10 +6,15 @@ from app.schemas.user import UserOut
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1)
+    remember: bool = True
 
 
 class ChangePasswordRequest(BaseModel):
     current_password: str = Field(min_length=1)
+    new_password: str = Field(min_length=8, max_length=72)
+
+
+class CompleteFirstLoginRequest(BaseModel):
     new_password: str = Field(min_length=8, max_length=72)
 
 
