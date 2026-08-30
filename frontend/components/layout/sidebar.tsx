@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   CalendarRange,
@@ -14,6 +15,7 @@ import { useCurrentUser } from "@/lib/api/hooks";
 import { initials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { AccountMenu } from "@/components/users/account-menu";
+import appIcon from "@/app/icon.png";
 
 const NAV = [
   { href: "/", label: "Home", icon: Home, exact: true },
@@ -37,8 +39,8 @@ export function Sidebar() {
         className="flex h-[52px] items-center justify-center border-b border-white/5"
         aria-label="Handyman CRM"
       >
-        <span className="flex size-8 items-center justify-center rounded-[5px] bg-brand text-[13px] font-bold text-white">
-          H
+        <span className="flex size-8 items-center justify-center rounded-[5px] bg-white p-0.5">
+          <Image src={appIcon} alt="" className="size-7 object-contain" priority />
         </span>
       </Link>
 

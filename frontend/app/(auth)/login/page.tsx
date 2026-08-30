@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -9,6 +10,7 @@ import { qk } from "@/lib/api/hooks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import appIcon from "@/app/icon.png";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -40,8 +42,8 @@ export default function LoginPage() {
     <main className="flex min-h-screen items-center justify-center bg-app px-4">
       <div className="w-full max-w-[360px]">
         <div className="mb-5 flex items-center gap-2.5">
-          <span className="flex size-9 items-center justify-center rounded-[5px] bg-brand text-[15px] font-bold text-white">
-            H
+          <span className="flex size-9 items-center justify-center rounded-[5px] bg-white p-0.5">
+            <Image src={appIcon} alt="" className="size-8 object-contain" priority />
           </span>
           <div>
             <p className="text-[15px] font-semibold leading-5 text-ink">
