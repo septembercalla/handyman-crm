@@ -9,6 +9,15 @@ import {
 } from "@vis.gl/react-google-maps";
 import type { MapPoint, MapRoute } from "./types";
 
+function markerIcon(point: MapPoint, selected: boolean): string {
+  const fill = point.neutral ? "#6b7785" : (point.color ?? "#1a6fe0");
+  const stroke = selected ? "#172536" : "#ffffff";
+  const strokeWidth = selected ? 3 : 2;
+  const label = point.index ? String(point.index) : "•";
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="38" viewBox="0 0 30 38"><path d="M15 1C7.8 1 2 6.8 2 14c0 9.5 13 23 13 23s13-13.5 13-23C28 6.8 22.2 1 15 1Z" fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth}"/><text x="15" y="18" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#ffffff">${label}</text></svg>`;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
 function decodePolyline(encoded: string): google.maps.LatLngLiteral[] {
   const points: google.maps.LatLngLiteral[] = [];
   let index = 0;
@@ -111,19 +120,7 @@ export function GoogleMapView({
             key={p.id}
             position={{ lat: p.lat, lng: p.lng }}
             title={p.title}
-            label={
-              p.index
-                ? { text: String(p.index), color: "#ffffff", fontSize: "11px" }
-                : { text: "•", color: "#ffffff", fontSize: "13px" }
-            }
-            icon={{
-              path: google.maps.SymbolPath.CIRCLE,
-              fillColor: p.neutral ? "#6b7785" : (p.color ?? "#1a6fe0"),
-              fillOpacity: 1,
-              strokeColor: selectedId === p.id ? "#172536" : "#ffffff",
-              strokeWeight: selectedId === p.id ? 4 : 2,
-              scale: selectedId === p.id ? 13 : 11,
-            }}
+            icon={markerIcon(p, selectedId === p.id)}
             zIndex={selectedId === p.id ? 1000 : p.index ?? 1}
             onClick={() => onSelect?.(p.id)}
           />
