@@ -20,12 +20,17 @@ import { PriorityBadge } from "@/components/common/priority-badge";
 import { EmptyState } from "@/components/common/empty-state";
 import { CATEGORY_LABEL } from "@/lib/constants";
 import { clockTime, fullAddress, timeWindow } from "@/lib/format";
+import { findTimeConflicts, taskTimeRange } from "@/lib/scheduling";
 import type { ScheduleRow, TaskWithRelations } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const DAY_START = 7; // 07:00
-const DAY_END = 20; // 20:00
+const DAY_END = 22; // 22:00
 const HOURS = Array.from({ length: DAY_END - DAY_START + 1 }, (_, i) => DAY_START + i);
+const HANDYMAN_COLUMN_WIDTH = 200;
+const HOUR_WIDTH = 96;
+const TIMELINE_WIDTH = (DAY_END - DAY_START) * HOUR_WIDTH;
+const BOARD_WIDTH = HANDYMAN_COLUMN_WIDTH + TIMELINE_WIDTH;
 
 function toHours(t: string | null): number | null {
   if (!t) return null;
@@ -61,6 +66,11 @@ export function ScheduleBoard({
     const handymanId = target === "unassigned" ? null : target.replace("row:", "");
     if (task.handyman_id === handymanId) return;
 
+    const targetRow = rows.find((row) => row.handyman.id === handymanId);
+    const conflicts = targetRow
+      ? findTimeConflicts(targetRow.tasks, taskTimeRange(task), task.id)
+      : [];
+
     try {
       await onAssign(task.id, handymanId);
       toast.success(
@@ -68,6 +78,19 @@ export function ScheduleBoard({
           ? `${task.task_number} → ${rows.find((r) => r.handyman.id === handymanId)?.handyman.full_name}`
           : `${task.task_number} unassigned`,
       );
+      if (targetRow && conflicts.length > 0) {
+        const occupied = conflicts
+          .slice(0, 2)
+          .map(
+            (conflict) =>
+              `${conflict.task_number} (${timeWindow(conflict.time_window_start, conflict.time_window_end)})`,
+          )
+          .join(", ");
+        toast.warning(
+          `${targetRow.handyman.full_name} is already booked: ${occupied}. Assigned anyway.`,
+          { duration: 7000 },
+        );
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not assign the task");
     }
@@ -80,33 +103,39 @@ export function ScheduleBoard({
       onDragEnd={onDragEnd}
     >
       <div className="grid gap-4 xl:grid-cols-[1fr_300px]">
-        <div className="overflow-hidden rounded-[6px] border border-line bg-surface">
-          {/* hour ruler */}
-          <div className="flex border-b border-line bg-surface">
-            <div className="w-[168px] shrink-0 border-r border-line px-4 py-2 text-[12px] font-medium text-ink-muted">
-              Handyman
-            </div>
-            <div className="relative flex-1">
-              <div className="flex h-9 items-end">
-                {HOURS.slice(0, -1).map((h) => (
-                  <div
-                    key={h}
-                    className="tnum flex-1 border-l border-line pl-1 pb-1 text-[11px] text-ink-muted"
-                  >
-                    {clockTime(`${String(h).padStart(2, "0")}:00`).replace(":00", "")}
-                  </div>
-                ))}
+        <div className="scroll-thin min-w-0 overflow-x-auto rounded-[6px] border border-line bg-surface">
+          <div style={{ minWidth: BOARD_WIDTH }}>
+            {/* hour ruler */}
+            <div className="flex border-b border-line bg-surface">
+              <div
+                className="sticky left-0 z-20 shrink-0 border-r border-line bg-surface px-4 py-2 text-[12px] font-medium text-ink-muted"
+                style={{ width: HANDYMAN_COLUMN_WIDTH }}
+              >
+                Handyman
+              </div>
+              <div className="relative shrink-0" style={{ width: TIMELINE_WIDTH }}>
+                <div className="flex h-9 items-end">
+                  {HOURS.slice(0, -1).map((h) => (
+                    <div
+                      key={h}
+                      className="tnum shrink-0 border-l border-line pb-1 pl-1 text-[11px] text-ink-muted"
+                      style={{ width: HOUR_WIDTH }}
+                    >
+                      {clockTime(`${String(h).padStart(2, "0")}:00`).replace(":00", "")}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
 
-          {rows.length === 0 ? (
-            <EmptyState title="No active handymen" />
-          ) : (
-            rows.map((row) => (
-              <HandymanRow key={row.handyman.id} row={row} />
-            ))
-          )}
+            {rows.length === 0 ? (
+              <EmptyState title="No active handymen" />
+            ) : (
+              rows.map((row) => (
+                <HandymanRow key={row.handyman.id} row={row} />
+              ))
+            )}
+          </div>
         </div>
 
         <UnassignedPanel tasks={unassigned} />
@@ -128,10 +157,31 @@ function HandymanRow({ row }: { row: ScheduleRow }) {
   const { setNodeRef, isOver } = useDroppable({ id: `row:${row.handyman.id}` });
   const untimed = row.tasks.filter((t) => !t.time_window_start);
   const timed = row.tasks.filter((t) => t.time_window_start);
+  const laneEnds: number[] = [];
+  const timedPlacements = [...timed]
+    .sort(
+      (a, b) =>
+        (toHours(a.time_window_start) ?? DAY_START) -
+        (toHours(b.time_window_start) ?? DAY_START),
+    )
+    .map((task) => {
+      const start = toHours(task.time_window_start) ?? DAY_START;
+      const end =
+        toHours(task.time_window_end) ??
+        start + (task.estimated_duration_min ?? 60) / 60;
+      let lane = laneEnds.findIndex((laneEnd) => laneEnd <= start);
+      if (lane === -1) lane = laneEnds.length;
+      laneEnds[lane] = end;
+      return { task, start, end, lane };
+    });
+  const rowHeight = Math.max(64, laneEnds.length * 56 + 8);
 
   return (
     <div className="flex border-b border-line last:border-b-0">
-      <div className="flex w-[168px] shrink-0 items-center gap-2 border-r border-line px-4 py-2">
+      <div
+        className="sticky left-0 z-10 flex shrink-0 items-center gap-2 border-r border-line bg-surface px-4 py-2"
+        style={{ width: HANDYMAN_COLUMN_WIDTH, minHeight: rowHeight }}
+      >
         <span
           className="size-2.5 shrink-0 rounded-full"
           style={{ backgroundColor: row.handyman.color }}
@@ -150,33 +200,35 @@ function HandymanRow({ row }: { row: ScheduleRow }) {
       <div
         ref={setNodeRef}
         className={cn(
-          "relative min-h-[64px] flex-1 transition-colors",
+          "relative shrink-0 transition-colors",
           isOver && "bg-[#eaf2fd]",
         )}
+        style={{ width: TIMELINE_WIDTH, minHeight: rowHeight }}
       >
         {/* hour grid lines */}
         <div className="pointer-events-none absolute inset-0 flex">
           {HOURS.slice(0, -1).map((h) => (
-            <div key={h} className="flex-1 border-l border-line/70" />
+            <div
+              key={h}
+              className="shrink-0 border-l border-line/70"
+              style={{ width: HOUR_WIDTH }}
+            />
           ))}
         </div>
 
-        {timed.map((t) => {
-          const start = toHours(t.time_window_start) ?? DAY_START;
-          const end =
-            toHours(t.time_window_end) ??
-            start + (t.estimated_duration_min ?? 60) / 60;
+        {timedPlacements.map(({ task, start, end, lane }) => {
           const span = DAY_END - DAY_START;
           const left = ((start - DAY_START) / span) * 100;
           const width = (Math.max(end - start, 0.5) / span) * 100;
           return (
             <TaskBlock
-              key={t.id}
-              task={t}
+              key={task.id}
+              task={task}
               color={row.handyman.color}
               style={{
                 left: `${Math.max(0, Math.min(left, 98))}%`,
                 width: `${Math.min(width, 100 - left)}%`,
+                top: lane * 56 + 6,
               }}
             />
           );

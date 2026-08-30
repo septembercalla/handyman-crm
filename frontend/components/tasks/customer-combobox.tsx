@@ -56,7 +56,7 @@ export function CustomerCombobox({
             <ChevronsUpDown className="size-3.5 shrink-0 text-ink-muted" />
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-[320px] p-0">
+        <PopoverContent className="w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] p-0">
           <Command>
             <CommandInput placeholder="Name, phone, address…" />
             <CommandList>

@@ -15,7 +15,14 @@ import {
   tasksApi,
   usersApi,
 } from "./client";
-import type { Customer, Task, TaskListParams, TaskStatus, User } from "@/lib/types";
+import type {
+  Customer,
+  Handyman,
+  Task,
+  TaskListParams,
+  TaskStatus,
+  User,
+} from "@/lib/types";
 
 export const qk = {
   currentUser: () => ["auth", "me"] as const,
@@ -108,11 +115,12 @@ export function useDeleteUser() {
   });
 }
 
-export function useTasks(params: TaskListParams) {
+export function useTasks(params: TaskListParams, enabled = true) {
   return useQuery({
     queryKey: qk.tasks(params),
     queryFn: () => tasksApi.list(params),
     placeholderData: keepPreviousData,
+    enabled,
   });
 }
 
@@ -186,6 +194,17 @@ export function useHandymen(params: { status?: string; search?: string } = {}) {
   return useQuery({
     queryKey: qk.handymen(params),
     queryFn: () => handymenApi.list(params),
+  });
+}
+
+export function useCreateHandyman() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: Partial<Handyman>) => handymenApi.create(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["handymen"] });
+      qc.invalidateQueries({ queryKey: ["schedule"] });
+    },
   });
 }
 

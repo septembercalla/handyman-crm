@@ -6,12 +6,18 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { CalendarClock, ClipboardList, MapPin, UserRound, Wrench } from "lucide-react";
+import {
+  AlertTriangle,
+  CalendarClock,
+  ClipboardList,
+  UserRound,
+} from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Field } from "@/components/common/field";
 import { CustomerCombobox } from "./customer-combobox";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -21,48 +27,81 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useCreateTask, useHandymen, useUpdateTask } from "@/lib/api/hooks";
+import { TimeSelect } from "@/components/ui/time-select";
+import {
+  useCreateTask,
+  useHandymen,
+  useTasks,
+  useUpdateTask,
+} from "@/lib/api/hooks";
 import {
   CATEGORY_LABEL,
   PRIORITY_LABEL,
   TASK_CATEGORIES,
   TASK_PRIORITIES,
 } from "@/lib/constants";
-import type { TaskWithRelations } from "@/lib/types";
+import { timeWindow, todayISO } from "@/lib/format";
+import { dayWorkloadLabel, findTimeConflicts, getTimeRange } from "@/lib/scheduling";
+import type { TaskCategory, TaskWithRelations } from "@/lib/types";
 
 const UNASSIGNED = "__none__";
 
-const schema = z.object({
-  task_number: z.string().trim().optional(),
-  title: z.string().trim().min(3, "At least 3 characters"),
-  category: z.enum([
-    "plumbing",
-    "electrical",
-    "hvac",
-    "carpentry",
-    "painting",
-    "appliance",
-    "general",
-    "other",
-  ]),
-  priority: z.enum(["low", "normal", "high", "urgent"]),
-  description: z.string().optional(),
+const DEFAULT_DURATION: Record<TaskCategory, number> = {
+  plumbing: 120,
+  electrical: 120,
+  hvac: 120,
+  carpentry: 120,
+  painting: 180,
+  appliance: 90,
+  general: 90,
+  other: 90,
+};
 
-  customer_id: z.string().min(1, "Select a customer"),
+const schema = z
+  .object({
+    task_number: z.string().trim().optional(),
+    title: z.string().trim().min(3, "At least 3 characters"),
+    category: z.enum([
+      "plumbing",
+      "electrical",
+      "hvac",
+      "carpentry",
+      "painting",
+      "appliance",
+      "general",
+      "other",
+    ]),
+    priority: z.enum(["low", "normal", "high", "urgent"]),
+    description: z.string().optional(),
 
-  street_address: z.string().trim().min(3, "Street address is required"),
-  city: z.string().trim().min(1, "City is required"),
-  state: z.string().trim().max(2, "2 letters").optional(),
-  zip: z.string().trim().optional(),
+    customer_id: z.string().min(1, "Select a customer"),
 
-  scheduled_date: z.string().optional(),
-  time_window_start: z.string().optional(),
-  time_window_end: z.string().optional(),
-  estimated_duration_min: z.string().optional(),
+    street_address: z.string().trim().min(3, "Street address is required"),
+    city: z.string().trim().min(1, "City is required"),
+    state: z.string().trim().max(2, "2 letters").optional(),
+    zip: z.string().trim().optional(),
 
-  handyman_id: z.string().optional(),
-  internal_notes: z.string().optional(),
-});
+    scheduled_date: z.string().optional(),
+    time_window_start: z.string().optional(),
+    time_window_end: z.string().optional(),
+    estimated_duration_min: z.string().optional(),
+
+    handyman_id: z.string().optional(),
+    internal_notes: z.string().optional(),
+  })
+  .superRefine((values, context) => {
+    if (
+      values.time_window_start &&
+      values.time_window_end &&
+      values.time_window_end <= values.time_window_start
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["time_window_end"],
+        message: "End time must be later than start time",
+      });
+    }
+  });
 
 export type TaskFormValues = z.infer<typeof schema>;
 
@@ -78,6 +117,7 @@ export function TaskForm({ task }: { task?: TaskWithRelations }) {
     watch,
     setValue,
     reset,
+    getFieldState,
     formState: { errors, isSubmitting },
   } = useForm<TaskFormValues>({
     resolver: zodResolver(schema),
@@ -95,7 +135,7 @@ export function TaskForm({ task }: { task?: TaskWithRelations }) {
       scheduled_date: "",
       time_window_start: "",
       time_window_end: "",
-      estimated_duration_min: "",
+      estimated_duration_min: String(DEFAULT_DURATION.general),
       handyman_id: UNASSIGNED,
       internal_notes: "",
     },
@@ -126,6 +166,26 @@ export function TaskForm({ task }: { task?: TaskWithRelations }) {
   }, [task, reset]);
 
   const values = watch();
+  const { data: dayTasksData } = useTasks(
+    {
+      date_from: values.scheduled_date || undefined,
+      date_to: values.scheduled_date || undefined,
+      page_size: 200,
+    },
+    Boolean(values.scheduled_date),
+  );
+  const dayTasks = (dayTasksData?.items ?? []).filter(
+    (dayTask) => dayTask.status !== "cancelled" && dayTask.id !== task?.id,
+  );
+  const selectedHandymanTasks = dayTasks.filter(
+    (dayTask) => dayTask.handyman_id === values.handyman_id,
+  );
+  const candidateRange = getTimeRange(
+    values.time_window_start,
+    values.time_window_end,
+    values.estimated_duration_min ? Number(values.estimated_duration_min) : null,
+  );
+  const conflicts = findTimeConflicts(selectedHandymanTasks, candidateRange, task?.id);
 
   async function submit(values: TaskFormValues, keepEditing: boolean) {
     const payload = {
@@ -179,7 +239,7 @@ export function TaskForm({ task }: { task?: TaskWithRelations }) {
             </Button>
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               disabled={isSubmitting}
               onClick={handleSubmit((v) => submit(v, true))}
             >
@@ -197,17 +257,6 @@ export function TaskForm({ task }: { task?: TaskWithRelations }) {
           </CardHeader>
           <CardBody className="grid gap-4 md:grid-cols-4">
             <Field
-              label="Task #"
-              htmlFor="task_number"
-              hint="Leave empty to assign a number automatically"
-            >
-              <Input
-                id="task_number"
-                placeholder="T-1042"
-                {...register("task_number")}
-              />
-            </Field>
-            <Field
               label="Title"
               htmlFor="title"
               required
@@ -221,46 +270,51 @@ export function TaskForm({ task }: { task?: TaskWithRelations }) {
                 {...register("title")}
               />
             </Field>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Category">
-                <Select
-                  value={values.category}
-                  onValueChange={(v) =>
-                    setValue("category", v as TaskFormValues["category"])
+            <Field label="Category">
+              <Select
+                value={values.category}
+                onValueChange={(v) => {
+                  const category = v as TaskFormValues["category"];
+                  setValue("category", category);
+                  if (!getFieldState("estimated_duration_min").isDirty) {
+                    setValue(
+                      "estimated_duration_min",
+                      String(DEFAULT_DURATION[category]),
+                    );
                   }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TASK_CATEGORIES.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {CATEGORY_LABEL[c]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Priority">
-                <Select
-                  value={values.priority}
-                  onValueChange={(v) =>
-                    setValue("priority", v as TaskFormValues["priority"])
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TASK_PRIORITIES.map((p) => (
-                      <SelectItem key={p} value={p}>
-                        {PRIORITY_LABEL[p]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TASK_CATEGORIES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {CATEGORY_LABEL[c]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Priority">
+              <Select
+                value={values.priority}
+                onValueChange={(v) =>
+                  setValue("priority", v as TaskFormValues["priority"])
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TASK_PRIORITIES.map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {PRIORITY_LABEL[p]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
             <Field label="Description" htmlFor="description" className="md:col-span-4">
               <Textarea
                 id="description"
@@ -268,14 +322,31 @@ export function TaskForm({ task }: { task?: TaskWithRelations }) {
                 {...register("description")}
               />
             </Field>
+            <details className="md:col-span-4">
+              <summary className="cursor-pointer text-[12px] font-medium text-ink-muted hover:text-ink">
+                Advanced
+              </summary>
+              <div className="mt-3 max-w-xs">
+                <Field
+                  label="Task #"
+                  htmlFor="task_number"
+                  hint="Leave empty to assign a number automatically"
+                >
+                  <Input
+                    id="task_number"
+                    placeholder="T-1042"
+                    {...register("task_number")}
+                  />
+                </Field>
+              </div>
+            </details>
           </CardBody>
         </Card>
 
-        {/* 2 + 3 — two columns, like Pickup / Delivery in the reference */}
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
           <Card>
             <CardHeader>
-              <CardTitle icon={<UserRound />}>Customer</CardTitle>
+              <CardTitle icon={<UserRound />}>Customer &amp; Location</CardTitle>
             </CardHeader>
             <CardBody className="space-y-4">
               <Field
@@ -299,6 +370,37 @@ export function TaskForm({ task }: { task?: TaskWithRelations }) {
                   }}
                 />
               </Field>
+
+              <div className="space-y-3 rounded-[4px] border border-line bg-subtle/30 p-3">
+                <p className="text-[11px] leading-4 text-ink-muted">
+                  Job address is copied from the customer record. Edit it here when
+                  this job is at a different location.
+                </p>
+                <Field
+                  label="Street address"
+                  htmlFor="street_address"
+                  required
+                  error={errors.street_address?.message}
+                >
+                  <Input
+                    id="street_address"
+                    aria-invalid={!!errors.street_address}
+                    {...register("street_address")}
+                  />
+                </Field>
+                <div className="grid grid-cols-[1fr_70px_96px] gap-3">
+                  <Field label="City" required error={errors.city?.message}>
+                    <Input aria-invalid={!!errors.city} {...register("city")} />
+                  </Field>
+                  <Field label="State">
+                    <Input maxLength={2} {...register("state")} />
+                  </Field>
+                  <Field label="ZIP">
+                    <Input {...register("zip")} />
+                  </Field>
+                </div>
+              </div>
+
               <Field label="Internal notes" htmlFor="internal_notes">
                 <Textarea
                   id="internal_notes"
@@ -311,95 +413,120 @@ export function TaskForm({ task }: { task?: TaskWithRelations }) {
 
           <Card>
             <CardHeader>
-              <CardTitle icon={<MapPin />}>Schedule &amp; Location</CardTitle>
+              <CardTitle icon={<CalendarClock />}>Schedule &amp; Assignment</CardTitle>
             </CardHeader>
             <CardBody className="space-y-4">
-              <Field
-                label="Street address"
-                htmlFor="street_address"
-                required
-                error={errors.street_address?.message}
-              >
-                <Input
-                  id="street_address"
-                  aria-invalid={!!errors.street_address}
-                  {...register("street_address")}
+              <Field label="Date">
+                <DatePicker
+                  value={values.scheduled_date ?? ""}
+                  onChange={(date) =>
+                    setValue("scheduled_date", date, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                  }
+                  minDate={task ? undefined : todayISO()}
                 />
               </Field>
-              <div className="grid grid-cols-[1fr_80px_110px] gap-3">
-                <Field label="City" required error={errors.city?.message}>
-                  <Input aria-invalid={!!errors.city} {...register("city")} />
-                </Field>
-                <Field label="State">
-                  <Input maxLength={2} {...register("state")} />
-                </Field>
-                <Field label="ZIP">
-                  <Input {...register("zip")} />
-                </Field>
-              </div>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <Field label="Date" htmlFor="scheduled_date">
-                  <Input
-                    id="scheduled_date"
-                    type="date"
-                    {...register("scheduled_date")}
+
+              <div className="grid gap-3 sm:grid-cols-[1fr_1fr_120px]">
+                <Field label="From">
+                  <TimeSelect
+                    value={values.time_window_start}
+                    onChange={(time) =>
+                      setValue("time_window_start", time, {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      })
+                    }
+                    placeholder="Start time"
                   />
                 </Field>
-                <Field label="From">
-                  <Input type="time" {...register("time_window_start")} />
-                </Field>
-                <Field label="To">
-                  <Input type="time" {...register("time_window_end")} />
+                <Field label="To" error={errors.time_window_end?.message}>
+                  <TimeSelect
+                    value={values.time_window_end}
+                    onChange={(time) =>
+                      setValue("time_window_end", time, {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      })
+                    }
+                    placeholder="End time"
+                  />
                 </Field>
                 <Field label="Est., min">
                   <Input
                     type="number"
                     min={0}
                     step={15}
-                    placeholder="90"
                     {...register("estimated_duration_min")}
                   />
                 </Field>
               </div>
+
+              <Field
+                label="Handyman"
+                hint="You can still save when a time conflict is shown."
+              >
+                <Select
+                  value={values.handyman_id || UNASSIGNED}
+                  onValueChange={(v) => setValue("handyman_id", v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Unassigned" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
+                    {handymen.map((handyman) => {
+                      const jobs = dayTasks.filter(
+                        (dayTask) => dayTask.handyman_id === handyman.id,
+                      );
+                      return (
+                        <SelectItem key={handyman.id} value={handyman.id}>
+                          {handyman.full_name}
+                          {values.scheduled_date
+                            ? ` · ${dayWorkloadLabel(jobs)}`
+                            : ""}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              {values.handyman_id && values.handyman_id !== UNASSIGNED && (
+                conflicts.length > 0 ? (
+                  <div className="flex gap-2 rounded-[4px] border border-[#f0c36d] bg-[#fff8e8] p-3 text-[12px] text-[#7a4b00]">
+                    <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                    <div>
+                      <p className="font-semibold">Time conflict</p>
+                      <p className="mt-0.5">
+                        This handyman already has {conflicts.map((conflict) => (
+                          <span key={conflict.id} className="font-medium">
+                            {conflict.task_number} ({timeWindow(
+                              conflict.time_window_start,
+                              conflict.time_window_end,
+                            )}){" "}
+                          </span>
+                        ))}
+                        during this slot. You can still save the assignment.
+                      </p>
+                    </div>
+                  </div>
+                ) : values.scheduled_date ? (
+                  <p className="flex items-center gap-1.5 rounded-[4px] bg-subtle px-3 py-2 text-[12px] text-ink-muted">
+                    <CalendarClock className="size-3.5 shrink-0" />
+                    {dayWorkloadLabel(selectedHandymanTasks)}
+                  </p>
+                ) : (
+                  <p className="text-[12px] text-ink-muted">
+                    Choose a date to see this handyman&apos;s workload.
+                  </p>
+                )
+              )}
             </CardBody>
           </Card>
         </div>
-
-        {/* 4. Assignment */}
-        <Card>
-          <CardHeader>
-            <CardTitle icon={<Wrench />}>Assignment</CardTitle>
-          </CardHeader>
-          <CardBody className="grid gap-4 md:grid-cols-2">
-            <Field
-              label="Handyman"
-              hint="Assigning a handyman moves the task to Assigned"
-            >
-              <Select
-                value={values.handyman_id || UNASSIGNED}
-                onValueChange={(v) => setValue("handyman_id", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Unassigned" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
-                  {handymen.map((h) => (
-                    <SelectItem key={h.id} value={h.id}>
-                      {h.full_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-            <div className="flex items-end">
-              <p className="flex items-center gap-1.5 text-[12px] text-ink-muted">
-                <CalendarClock className="size-3.5" />
-                Skill- and workload-based matching arrives with the backend.
-              </p>
-            </div>
-          </CardBody>
-        </Card>
       </div>
     </form>
   );

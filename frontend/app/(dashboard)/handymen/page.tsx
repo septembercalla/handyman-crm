@@ -2,8 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/common/empty-state";
+import { HandymanDialog } from "@/components/handymen/handyman-dialog";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
@@ -32,6 +35,13 @@ export default function HandymenPage() {
       <PageHeader
         title="Handymen"
         meta={handymen ? <span className="tnum">{handymen.length}</span> : undefined}
+        actions={
+          <HandymanDialog>
+            <Button>
+              <Plus /> Add handyman
+            </Button>
+          </HandymanDialog>
+        }
       />
 
       <div className="flex-1 p-4">
@@ -43,7 +53,17 @@ export default function HandymenPage() {
               ))}
             </div>
           ) : !handymen || handymen.length === 0 ? (
-            <EmptyState title="No handymen yet" />
+            <EmptyState
+              title="No handymen yet"
+              description="Add your first worker to assign tasks and build the schedule."
+              action={
+                <HandymanDialog>
+                  <Button size="sm">
+                    <Plus /> Add handyman
+                  </Button>
+                </HandymanDialog>
+              }
+            />
           ) : (
             <Table>
               <THead>

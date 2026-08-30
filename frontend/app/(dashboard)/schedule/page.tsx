@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { ScheduleBoard } from "@/components/tasks/schedule-board";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Skeleton } from "@/components/ui/skeleton";
 import { tasksApi } from "@/lib/api/client";
 import { useSchedule, useUnassigned } from "@/lib/api/hooks";
@@ -16,7 +16,7 @@ export default function SchedulePage() {
   const [date, setDate] = useState(todayISO());
   const qc = useQueryClient();
   const { data: rows, isLoading } = useSchedule(date);
-  const { data: unassigned = [] } = useUnassigned();
+  const { data: unassigned = [] } = useUnassigned(date);
 
   async function assign(taskId: string, handymanId: string | null) {
     await tasksApi.assign(taskId, handymanId);
@@ -62,11 +62,10 @@ export default function SchedulePage() {
             >
               <ChevronRight />
             </Button>
-            <Input
-              type="date"
+            <DatePicker
               value={date}
-              onChange={(e) => setDate(e.target.value || todayISO())}
-              className="h-8 w-[140px]"
+              onChange={(next) => setDate(next || todayISO())}
+              className="h-8 w-[170px]"
             />
           </div>
         }
