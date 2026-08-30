@@ -44,6 +44,25 @@ interface RequestOptions {
   params?: Record<string, QueryValue>;
   /** login and /auth/me handle 401 themselves instead of bouncing to /login */
   skipAuthRedirect?: boolean;
+  /** internal guard against retry loops after an unsuccessful refresh */
+  retryAuth?: boolean;
+}
+
+let refreshPromise: Promise<boolean> | null = null;
+
+function refreshSession(): Promise<boolean> {
+  if (!refreshPromise) {
+    refreshPromise = fetch(`${API_URL}/auth/refresh`, {
+      method: "POST",
+      credentials: "include",
+    })
+      .then((response) => response.ok)
+      .catch(() => false)
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
 }
 
 function buildQuery(params?: Record<string, QueryValue>): string {
@@ -67,7 +86,7 @@ function redirectToLogin() {
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = "GET", body, params, skipAuthRedirect } = options;
+  const { method = "GET", body, params, skipAuthRedirect, retryAuth = true } = options;
 
   let response: Response;
   try {
@@ -81,9 +100,19 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     throw new ApiError("Cannot reach the API. Is the backend running?", 0);
   }
 
+  if (
+    response.status === 401 &&
+    retryAuth &&
+    path !== "/auth/login" &&
+    path !== "/auth/refresh"
+  ) {
+    const refreshed = await refreshSession();
+    if (refreshed) return request<T>(path, { ...options, retryAuth: false });
+  }
+
   if (response.status === 401 && !skipAuthRedirect) {
     redirectToLogin();
-    throw new ApiError("Not authenticated", 401);
+    throw new ApiError("Your session has expired. Please sign in again.", 401);
   }
 
   if (response.status === 204) {
@@ -155,6 +184,38 @@ export const auth = {
       if (error instanceof ApiError && error.status === 401) return null;
       throw error;
     }
+  },
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    await request<void>("/auth/change-password", {
+      method: "POST",
+      body: { current_password: currentPassword, new_password: newPassword },
+    });
+  },
+};
+
+/* ----------------------------------------------------------------- users */
+
+export const usersApi = {
+  list(): Promise<User[]> {
+    return request<User[]>("/users");
+  },
+
+  create(payload: { email: string; full_name: string; password: string }): Promise<User> {
+    return request<User>("/users", { method: "POST", body: payload });
+  },
+
+  update(
+    id: string,
+    payload: Partial<Pick<User, "email" | "full_name" | "is_active">> & {
+      password?: string;
+    },
+  ): Promise<User> {
+    return request<User>(`/users/${id}`, { method: "PATCH", body: payload });
+  },
+
+  remove(id: string): Promise<void> {
+    return request<void>(`/users/${id}`, { method: "DELETE" });
   },
 };
 

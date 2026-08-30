@@ -31,7 +31,8 @@ uv run uvicorn app.main:app --reload
 ```
 
 API on http://localhost:8000, interactive docs on **http://localhost:8000/docs**.
-Sign in with `dispatcher@handyman.crm` / `demo`.
+The local seed creates `dispatcher@handyman.crm` / `demo`; change that password
+before using the account anywhere outside local development.
 
 ### 3. Frontend
 
@@ -42,16 +43,15 @@ cp .env.local.example .env.local
 npm run dev
 ```
 
-http://localhost:3000 — the sign-in form is pre-filled with the seeded account,
-press **Sign in**. The backend must be running: the frontend has no data of its
-own any more.
+http://localhost:3000 — sign in with the local seeded account. The backend must
+be running: the frontend has no data of its own any more.
 
 ### Both at once
 
 From the repository root: `npm install && npm run dev` starts the frontend and the
 backend side by side through `concurrently`. In VS Code: **Terminal → Run Build
 Task** (`dev: all`). Handy root scripts: `npm run db:migrate`, `npm run db:seed`,
-`npm run db:reset`, `npm run lint`, `npm run lint:back`.
+`npm run db:reset`, `npm run db:cleanup-demo`, `npm run lint`, `npm run lint:back`.
 
 ---
 
@@ -130,6 +130,11 @@ blanks.
 Reset the database with `npm run db:reset`. On an empty (production) database,
 create the first account with `python -m app.create_admin` — it writes one user
 and nothing else, unlike the demo seed.
+
+`db:reset` is refused in production even with the seed override. If demo fixtures
+were accidentally seeded, `python -m app.cleanup_demo` performs a dry run using
+their exact signatures and never touches users. Committing that cleanup requires
+the explicit confirmation described in `DEPLOY.md`.
 
 ## Maps
 

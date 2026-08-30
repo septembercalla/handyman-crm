@@ -13,11 +13,13 @@ import {
   handymenApi,
   scheduleApi,
   tasksApi,
+  usersApi,
 } from "./client";
-import type { Customer, Task, TaskListParams, TaskStatus } from "@/lib/types";
+import type { Customer, Task, TaskListParams, TaskStatus, User } from "@/lib/types";
 
 export const qk = {
   currentUser: () => ["auth", "me"] as const,
+  users: () => ["users"] as const,
   tasks: (p: TaskListParams) => ["tasks", p] as const,
   task: (id: string) => ["task", id] as const,
   taskHistory: (id: string) => ["task", id, "history"] as const,
@@ -50,6 +52,52 @@ export function useCurrentUser() {
     queryFn: () => auth.me(),
     staleTime: 5 * 60_000,
     retry: false,
+  });
+}
+
+export function useUsers(enabled = true) {
+  return useQuery({
+    queryKey: qk.users(),
+    queryFn: () => usersApi.list(),
+    enabled,
+  });
+}
+
+export function useCreateUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { email: string; full_name: string; password: string }) =>
+      usersApi.create(payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.users() }),
+  });
+}
+
+export function useUpdateUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: Partial<Pick<User, "email" | "full_name" | "is_active">> & {
+        password?: string;
+      };
+    }) => usersApi.update(id, payload),
+    onSuccess: (user) => {
+      qc.invalidateQueries({ queryKey: qk.users() });
+      qc.setQueryData<User | null>(qk.currentUser(), (current) =>
+        current?.id === user.id ? user : current,
+      );
+    },
+  });
+}
+
+export function useDeleteUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => usersApi.remove(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.users() }),
   });
 }
 

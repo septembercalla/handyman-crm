@@ -21,25 +21,36 @@ def verify_password(password: str, password_hash: str) -> bool:
         return False
 
 
-def _create_token(subject: str, token_type: TokenType, expires: timedelta) -> str:
+def _create_token(
+    subject: str, token_type: TokenType, expires: timedelta, auth_version: int = 0
+) -> str:
     now = datetime.now(UTC)
     payload: dict[str, Any] = {
         "sub": subject,
         "type": token_type,
         "iat": int(now.timestamp()),
         "exp": int((now + expires).timestamp()),
+        "ver": auth_version,
     }
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
-def create_access_token(subject: str) -> str:
+def create_access_token(subject: str, auth_version: int = 0) -> str:
     return _create_token(
-        subject, "access", timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        subject,
+        "access",
+        timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+        auth_version,
     )
 
 
-def create_refresh_token(subject: str) -> str:
-    return _create_token(subject, "refresh", timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS))
+def create_refresh_token(subject: str, auth_version: int = 0) -> str:
+    return _create_token(
+        subject,
+        "refresh",
+        timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
+        auth_version,
+    )
 
 
 def decode_token(token: str, expected_type: TokenType) -> dict[str, Any] | None:

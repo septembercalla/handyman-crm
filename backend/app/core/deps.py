@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import decode_token
 from app.database import get_db
-from app.models import User
+from app.models import User, UserRole
 
 ACCESS_COOKIE = "access_token"
 REFRESH_COOKIE = "refresh_token"
@@ -45,8 +45,23 @@ def get_current_user(
     user = db.get(User, user_id)
     if not user or not user.is_active:
         raise _UNAUTHORIZED
+    if payload.get("ver", 0) != user.auth_version:
+        raise _UNAUTHORIZED
     return user
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
 DbSession = Annotated[Session, Depends(get_db)]
+
+
+def require_admin(user: CurrentUser) -> User:
+    """Authorize user-management operations on the server, not just in the UI."""
+    if user.role is not UserRole.admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrator access required",
+        )
+    return user
+
+
+AdminUser = Annotated[User, Depends(require_admin)]

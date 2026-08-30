@@ -15,7 +15,8 @@
     "install:back": "cd backend && uv sync",
     "db:migrate": "cd backend && uv run alembic upgrade head",
     "db:seed": "cd backend && uv run python -m app.seed",
-    "db:reset": "cd backend && uv run python -m app.seed --reset"
+    "db:reset": "cd backend && uv run python -m app.seed --reset",
+    "db:cleanup-demo": "cd backend && uv run python -m app.cleanup_demo"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

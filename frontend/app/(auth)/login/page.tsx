@@ -13,8 +13,8 @@ import { Label } from "@/components/ui/label";
 export default function LoginPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [email, setEmail] = useState("dispatcher@handyman.crm");
-  const [password, setPassword] = useState("demo");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
@@ -62,6 +62,7 @@ export default function LoginPage() {
                 autoComplete="username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                required
               />
             </div>
             <div className="space-y-1">
@@ -72,6 +73,7 @@ export default function LoginPage() {
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                required
               />
             </div>
           </div>
@@ -80,10 +82,6 @@ export default function LoginPage() {
             {busy ? "Signing in…" : "Sign in"}
           </Button>
 
-          <p className="mt-3 text-[12px] leading-4 text-ink-muted">
-            Seeded demo account: dispatcher@handyman.crm / demo. The backend
-            must be running on NEXT_PUBLIC_API_URL.
-          </p>
         </form>
       </div>
     </main>

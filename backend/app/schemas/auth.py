@@ -8,6 +8,11 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=1)
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(min_length=1)
+    new_password: str = Field(min_length=8, max_length=72)
+
+
 class TokenPair(BaseModel):
     """Tokens are also set as httpOnly cookies; the body keeps /docs and curl usable."""
 

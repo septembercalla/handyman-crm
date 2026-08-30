@@ -5,7 +5,7 @@ Mirrors the fixtures the frontend used before the backend existed, so switching
 `NEXT_PUBLIC_API_URL` on gives you the same screens with the same content.
 
     uv run python -m app.seed          # fill an empty database
-    uv run python -m app.seed --reset  # wipe the tables first
+    uv run python -m app.seed --reset  # wipe local-development tables first
 """
 
 import argparse
@@ -193,7 +193,7 @@ def run(do_reset: bool = False) -> None:
             user = User(
                 email=DEMO_EMAIL,
                 password_hash=hash_password(DEMO_PASSWORD),
-                full_name="Alex Dispatcher",
+                full_name="CRM Administrator",
                 role=UserRole.admin,
                 is_active=True,
             )
@@ -321,6 +321,14 @@ def main() -> None:
         "--force", action="store_true", help="allow running when ENV looks like production"
     )
     args = parser.parse_args()
+
+    if settings.is_production and args.reset:
+        print(
+            "Refusing --reset in production. Use app.cleanup_demo for a "
+            "fixture-only dry run instead.",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
 
     if settings.is_production and not args.force:
         print(

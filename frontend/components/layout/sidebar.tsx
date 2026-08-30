@@ -6,7 +6,9 @@ import {
   CalendarRange,
   ClipboardList,
   Home,
+  KeyRound,
   LogOut,
+  UserCog,
   Users,
   Wrench,
 } from "lucide-react";
@@ -15,6 +17,8 @@ import { auth } from "@/lib/api/client";
 import { useCurrentUser } from "@/lib/api/hooks";
 import { initials } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { ChangePasswordDialog } from "@/components/users/change-password-dialog";
+import { toast } from "sonner";
 
 const NAV = [
   { href: "/", label: "Home", icon: Home, exact: true },
@@ -46,7 +50,12 @@ export function Sidebar() {
       </Link>
 
       <div className="flex flex-1 flex-col gap-0.5 px-1.5 py-2">
-        {NAV.map((item) => {
+        {[
+          ...NAV,
+          ...(user?.role === "admin"
+            ? [{ href: "/users", label: "Users", icon: UserCog }]
+            : []),
+        ].map((item) => {
           const active = item.exact
             ? pathname === item.href
             : pathname === item.href || pathname.startsWith(item.href + "/");
@@ -84,12 +93,25 @@ export function Sidebar() {
             {user?.full_name?.split(" ")[0] ?? "Guest"}
           </span>
         </div>
+        <ChangePasswordDialog>
+          <button
+            type="button"
+            className="mt-1 flex w-full flex-col items-center justify-center gap-1 rounded-[4px] py-2 text-sidebar-ink transition-colors hover:bg-white/5 hover:text-white"
+          >
+            <KeyRound className="size-[16px]" strokeWidth={1.9} />
+            <span className="text-[10px] font-medium leading-none">Password</span>
+          </button>
+        </ChangePasswordDialog>
         <button
           type="button"
           onClick={async () => {
-            await auth.logout().catch(() => undefined);
-            queryClient.clear();
-            router.replace("/login");
+            try {
+              await auth.logout();
+              queryClient.clear();
+              router.replace("/login");
+            } catch (error) {
+              toast.error(error instanceof Error ? error.message : "Could not log out");
+            }
           }}
           className="mt-1 flex w-full flex-col items-center justify-center gap-1 rounded-[4px] py-2 text-sidebar-ink transition-colors hover:bg-white/5 hover:text-white"
         >

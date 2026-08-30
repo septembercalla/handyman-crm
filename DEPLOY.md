@@ -104,15 +104,29 @@ Or set `ADMIN_EMAIL` / `ADMIN_PASSWORD` as variables and run
 `railway run python -m app.create_admin`. The script writes exactly one user and
 nothing else.
 
-Want the demo fixtures (5 handymen, 14 customers, 32 tasks) in the deployed
-database as well:
+Do not run `app.seed` against production. It is intended for local development
+and staging demos only. The production `--reset` path is blocked in code even
+when `--force` is supplied.
+
+If demo fixtures were accidentally added, first run the read-only preview:
 
 ```bash
-railway run --service <backend-service> python -m app.seed --force
+railway run --service <backend-service> python -m app.cleanup_demo
 ```
 
-`--force` is required on purpose: without it the seed refuses to touch a
-production database.
+The command matches the exact stable signatures from `app.seed`, rolls its
+transaction back, reports counts, and always reports `Users: 0`. Modified rows
+and demo customers/handymen that are now referenced by non-demo tasks are kept.
+
+Only after reviewing that dry run, commit the same narrowly scoped cleanup with:
+
+```bash
+railway run --service <backend-service> \
+  python -m app.cleanup_demo --apply --confirm REMOVE_DEMO_FIXTURES
+```
+
+This command is intentionally not part of deployment and must never be run
+without an explicit production-data approval.
 
 ### 7. Check it
 

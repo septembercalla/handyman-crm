@@ -1,5 +1,5 @@
 """
-Create the first dispatcher account.
+Create the primary administrator account.
 
 `app.seed` fills a database with demo fixtures and refuses to run in production.
 This script does the one thing a fresh production database actually needs: a user
@@ -36,6 +36,9 @@ def create_admin(email: str, password: str, full_name: str, reset: bool) -> int:
             f"Password must be at least {MIN_PASSWORD_LENGTH} characters", file=sys.stderr
         )
         return 1
+    if len(password) > 72:
+        print("Password must be at most 72 characters", file=sys.stderr)
+        return 1
 
     db = SessionLocal()
     try:
@@ -50,6 +53,8 @@ def create_admin(email: str, password: str, full_name: str, reset: bool) -> int:
         if existing:
             existing.password_hash = hash_password(password)
             existing.is_active = True
+            existing.role = UserRole.admin
+            existing.auth_version += 1
             db.commit()
             print(f"Password updated for {email}")
             return 0
@@ -71,10 +76,10 @@ def create_admin(email: str, password: str, full_name: str, reset: bool) -> int:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Create the first dispatcher account")
+    parser = argparse.ArgumentParser(description="Create the primary administrator account")
     parser.add_argument("--email", default=os.getenv("ADMIN_EMAIL", ""))
     parser.add_argument("--password", default=os.getenv("ADMIN_PASSWORD", ""))
-    parser.add_argument("--name", default=os.getenv("ADMIN_NAME", "Dispatcher"))
+    parser.add_argument("--name", default=os.getenv("ADMIN_NAME", "CRM Administrator"))
     parser.add_argument(
         "--reset-password",
         action="store_true",

@@ -10,10 +10,11 @@ from app.core.security import (
     create_access_token,
     create_refresh_token,
     decode_token,
+    hash_password,
     verify_password,
 )
 from app.models import User
-from app.schemas import LoginRequest, TokenPair, UserOut
+from app.schemas import ChangePasswordRequest, LoginRequest, TokenPair, UserOut
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -58,8 +59,8 @@ def login(payload: LoginRequest, response: Response, db: DbSession) -> TokenPair
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is disabled")
 
-    access = create_access_token(str(user.id))
-    refresh = create_refresh_token(str(user.id))
+    access = create_access_token(str(user.id), user.auth_version)
+    refresh = create_refresh_token(str(user.id), user.auth_version)
     _set_auth_cookies(response, access, refresh)
     return TokenPair(access_token=access, refresh_token=refresh, user=UserOut.model_validate(user))
 
@@ -86,9 +87,11 @@ def refresh_tokens(
         user = None
     if not user or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unknown user")
+    if claims.get("ver", 0) != user.auth_version:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session revoked")
 
-    access = create_access_token(str(user.id))
-    new_refresh = create_refresh_token(str(user.id))
+    access = create_access_token(str(user.id), user.auth_version)
+    new_refresh = create_refresh_token(str(user.id), user.auth_version)
     _set_auth_cookies(response, access, new_refresh)
     return TokenPair(
         access_token=access, refresh_token=new_refresh, user=UserOut.model_validate(user)
@@ -107,3 +110,29 @@ def logout(response: Response) -> None:
 @router.get("/me", response_model=UserOut)
 def me(user: CurrentUser) -> User:
     return user
+
+
+@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+def change_password(
+    payload: ChangePasswordRequest,
+    response: Response,
+    db: DbSession,
+    user: CurrentUser,
+) -> None:
+    if not verify_password(payload.current_password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect",
+        )
+    if verify_password(payload.new_password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be different from the current password",
+        )
+
+    user.password_hash = hash_password(payload.new_password)
+    user.auth_version += 1
+    db.commit()
+    access = create_access_token(str(user.id), user.auth_version)
+    refresh = create_refresh_token(str(user.id), user.auth_version)
+    _set_auth_cookies(response, access, refresh)
