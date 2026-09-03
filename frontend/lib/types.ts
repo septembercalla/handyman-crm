@@ -15,6 +15,13 @@ export interface User {
 }
 
 export type HandymanStatus = "active" | "inactive";
+export type HandymanDocumentType =
+  | "contract"
+  | "driver_license"
+  | "w9"
+  | "insurance"
+  | "certification"
+  | "other";
 
 export interface Handyman {
   id: string;
@@ -27,8 +34,26 @@ export interface Handyman {
   color: string;
   status: HandymanStatus;
   notes: string;
+  street_address: string;
+  city: string;
+  state: string;
+  zip: string;
+  latitude: number | null;
+  longitude: number | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface HandymanDocument {
+  id: string;
+  handyman_id: string;
+  file_name: string;
+  document_type: HandymanDocumentType;
+  mime_type: string;
+  file_size: number;
+  uploaded_at: string;
+  uploaded_by: string | null;
+  notes: string;
 }
 
 export interface Customer {

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -45,6 +45,17 @@ import { dayWorkloadLabel, findTimeConflicts, getTimeRange } from "@/lib/schedul
 import type { TaskCategory, TaskWithRelations } from "@/lib/types";
 
 const UNASSIGNED = "__none__";
+
+const FIELD_LABELS: Partial<Record<keyof TaskFormValues, string>> = {
+  title: "Title",
+  category: "Category",
+  priority: "Priority",
+  customer_id: "Customer",
+  street_address: "Street address",
+  city: "City",
+  state: "State",
+  time_window_end: "End time",
+};
 
 const DEFAULT_DURATION: Record<TaskCategory, number> = {
   plumbing: 120,
@@ -147,7 +158,7 @@ export function TaskForm({ task }: { task?: TaskWithRelations }) {
       task_number: task.task_number,
       title: task.title,
       category: task.category,
-      priority: task.priority,
+      priority: TASK_PRIORITIES.includes(task.priority) ? task.priority : "normal",
       description: task.description,
       customer_id: task.customer_id,
       street_address: task.street_address,
@@ -166,6 +177,10 @@ export function TaskForm({ task }: { task?: TaskWithRelations }) {
   }, [task, reset]);
 
   const values = watch();
+  const assignmentHandymen =
+    task?.handyman && !handymen.some((handyman) => handyman.id === task.handyman?.id)
+      ? [...handymen, task.handyman]
+      : handymen;
   const { data: dayTasksData } = useTasks(
     {
       date_from: values.scheduled_date || undefined,
@@ -227,8 +242,32 @@ export function TaskForm({ task }: { task?: TaskWithRelations }) {
     }
   }
 
+  function showValidationError(formErrors: FieldErrors<TaskFormValues>) {
+    const fieldName = Object.keys(formErrors)[0] as keyof TaskFormValues | undefined;
+    if (!fieldName) {
+      toast.error("Cannot save: check the required fields");
+      return;
+    }
+
+    const error = formErrors[fieldName];
+    const label = FIELD_LABELS[fieldName] ?? "Required field";
+    const message =
+      fieldName === "priority"
+        ? "select a priority"
+        : typeof error?.message === "string"
+          ? error.message
+          : "check this field";
+    const element = document.getElementById(fieldName);
+    element?.scrollIntoView({ behavior: "smooth", block: "center" });
+    element?.focus();
+    toast.error(`Cannot save: ${label} — ${message}`);
+  }
+
+  const submitForm = (keepEditing: boolean) =>
+    handleSubmit((values) => submit(values, keepEditing), showValidationError);
+
   return (
-    <form onSubmit={handleSubmit((v) => submit(v, false))}>
+    <form onSubmit={submitForm(false)}>
       <PageHeader
         back
         title={task ? `Edit ${task.task_number}` : "Create Task"}
@@ -241,7 +280,7 @@ export function TaskForm({ task }: { task?: TaskWithRelations }) {
               type="button"
               variant="ghost"
               disabled={isSubmitting}
-              onClick={handleSubmit((v) => submit(v, true))}
+              onClick={submitForm(true)}
             >
               Save &amp; Continue Editing
             </Button>
@@ -296,15 +335,23 @@ export function TaskForm({ task }: { task?: TaskWithRelations }) {
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="Priority">
+            <Field
+              label="Priority"
+              htmlFor="priority"
+              required
+              error={errors.priority ? "Select a priority" : undefined}
+            >
               <Select
                 value={values.priority}
                 onValueChange={(v) =>
-                  setValue("priority", v as TaskFormValues["priority"])
+                  setValue("priority", v as TaskFormValues["priority"], {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  })
                 }
               >
-                <SelectTrigger>
-                  <SelectValue />
+                <SelectTrigger id="priority" aria-invalid={!!errors.priority}>
+                  <SelectValue placeholder="Select priority" />
                 </SelectTrigger>
                 <SelectContent>
                   {TASK_PRIORITIES.map((p) => (
@@ -477,13 +524,14 @@ export function TaskForm({ task }: { task?: TaskWithRelations }) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
-                    {handymen.map((handyman) => {
+                    {assignmentHandymen.map((handyman) => {
                       const jobs = dayTasks.filter(
                         (dayTask) => dayTask.handyman_id === handyman.id,
                       );
                       return (
                         <SelectItem key={handyman.id} value={handyman.id}>
                           {handyman.full_name}
+                          {handyman.status === "inactive" ? " · inactive" : ""}
                           {values.scheduled_date
                             ? ` · ${dayWorkloadLabel(jobs)}`
                             : ""}

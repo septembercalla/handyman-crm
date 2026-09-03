@@ -7,5 +7,6 @@ out/
 .DS_Store
 __pycache__/
 .venv/
+.private-storage/
 .ruff_cache/
 .pytest_cache/

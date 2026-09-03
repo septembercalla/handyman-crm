@@ -6,10 +6,14 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, or_, select
 
 from app.core.deps import CurrentUser, DbSession
-from app.models import Handyman, HandymanStatus, Task
+from app.models import Handyman, HandymanDocument, HandymanStatus, Task
 from app.schemas import HandymanCreate, HandymanOut, HandymanUpdate, TaskOut
+from app.services.geocoding import geocode
+from app.services.storage import get_private_storage
 
 router = APIRouter(prefix="/handymen", tags=["handymen"])
+
+ADDRESS_FIELDS = {"street_address", "city", "state", "zip"}
 
 
 def _get_or_404(db, handyman_id: uuid.UUID) -> Handyman:
@@ -17,6 +21,19 @@ def _get_or_404(db, handyman_id: uuid.UUID) -> Handyman:
     if not handyman:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Handyman not found")
     return handyman
+
+
+def _refresh_coordinates(handyman: Handyman) -> None:
+    handyman.latitude = None
+    handyman.longitude = None
+    coords = geocode(
+        handyman.street_address,
+        handyman.city,
+        handyman.state,
+        handyman.zip,
+    )
+    if coords:
+        handyman.latitude, handyman.longitude = coords
 
 
 @router.get("", response_model=list[HandymanOut])
@@ -45,6 +62,7 @@ def list_handymen(
 @router.post("", response_model=HandymanOut, status_code=status.HTTP_201_CREATED)
 def create_handyman(payload: HandymanCreate, db: DbSession, _: CurrentUser) -> Handyman:
     handyman = Handyman(**payload.model_dump())
+    _refresh_coordinates(handyman)
     db.add(handyman)
     db.commit()
     db.refresh(handyman)
@@ -61,11 +79,57 @@ def update_handyman(
     handyman_id: uuid.UUID, payload: HandymanUpdate, db: DbSession, _: CurrentUser
 ) -> Handyman:
     handyman = _get_or_404(db, handyman_id)
-    for key, value in payload.model_dump(exclude_unset=True).items():
+    data = payload.model_dump(exclude_unset=True)
+    address_changed = bool(ADDRESS_FIELDS.intersection(data))
+    for key, value in data.items():
         setattr(handyman, key, value)
+    if address_changed:
+        _refresh_coordinates(handyman)
     db.commit()
     db.refresh(handyman)
     return handyman
+
+
+@router.delete("/{handyman_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_handyman(
+    handyman_id: uuid.UUID,
+    db: DbSession,
+    _: CurrentUser,
+) -> None:
+    handyman = _get_or_404(db, handyman_id)
+    task_count = db.scalar(
+        select(func.count()).select_from(Task).where(Task.handyman_id == handyman_id)
+    )
+    if task_count:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "This handyman has task history and cannot be permanently deleted. "
+                "Set the profile to inactive instead."
+            ),
+        )
+
+    documents = list(
+        db.execute(
+            select(HandymanDocument).where(
+                HandymanDocument.handyman_id == handyman_id
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if documents:
+        try:
+            storage = get_private_storage()
+        except RuntimeError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Private document storage is not configured",
+            ) from exc
+        for document in documents:
+            storage.delete(document.storage_key)
+    db.delete(handyman)
+    db.commit()
 
 
 @router.get("/{handyman_id}/tasks", response_model=list[TaskOut])

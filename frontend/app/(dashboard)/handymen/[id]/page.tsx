@@ -2,11 +2,23 @@
 
 import Link from "next/link";
 import { use, useState } from "react";
-import { ChevronLeft, ChevronRight, Clock, Mail, MapPin, Phone } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Mail,
+  MapPin,
+  Pencil,
+  Phone,
+  Trash2,
+} from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/common/empty-state";
 import { StatusBadge } from "@/components/common/status-badge";
 import { PriorityBadge } from "@/components/common/priority-badge";
+import { HandymanDeleteDialog } from "@/components/handymen/handyman-delete-dialog";
+import { HandymanDialog } from "@/components/handymen/handyman-dialog";
+import { HandymanDocuments } from "@/components/handymen/handyman-documents";
 import { MapView } from "@/components/map/map-view";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useHandyman, useHandymanDay } from "@/lib/api/hooks";
+import { useCurrentUser, useHandyman, useHandymanDay } from "@/lib/api/hooks";
 import { CATEGORY_LABEL } from "@/lib/constants";
 import {
   addDays,
@@ -38,6 +50,7 @@ export default function HandymanPage({
   const [date, setDate] = useState(todayISO());
   const [selected, setSelected] = useState<string | null>(null);
 
+  const { data: currentUser } = useCurrentUser();
   const { data: handyman, isLoading } = useHandyman(id);
   const { data: tasks = [], isLoading: tasksLoading } = useHandymanDay(id, date);
 
@@ -93,6 +106,16 @@ export default function HandymanPage({
         }
         actions={
           <div className="flex items-center gap-1.5">
+            <HandymanDialog handyman={handyman}>
+              <Button variant="outline" size="sm">
+                <Pencil /> Edit
+              </Button>
+            </HandymanDialog>
+            <HandymanDeleteDialog handyman={handyman}>
+              <Button variant="outline" size="iconSm" aria-label="Delete handyman">
+                <Trash2 />
+              </Button>
+            </HandymanDeleteDialog>
             <Button
               variant="outline"
               size="iconSm"
@@ -284,15 +307,33 @@ export default function HandymanPage({
                   </span>
                 ))}
               </div>
-              <p className="text-ink-muted">
-                Rate:{" "}
-                <span className="tnum text-ink">
-                  {handyman.hourly_rate ? `$${handyman.hourly_rate}/h` : "—"}
-                </span>
-              </p>
+              {(handyman.street_address ||
+                handyman.city ||
+                handyman.state ||
+                handyman.zip) && (
+                <div className="flex items-start gap-2 text-ink-muted">
+                  <MapPin className="mt-0.5 size-3.5 shrink-0" />
+                  <div>
+                    <p className="text-[11px] font-medium uppercase tracking-wide">
+                      Home address
+                    </p>
+                    <p className="mt-0.5 text-ink">
+                      {[
+                        handyman.street_address,
+                        handyman.city,
+                        [handyman.state, handyman.zip].filter(Boolean).join(" "),
+                      ]
+                        .filter(Boolean)
+                        .join(", ")}
+                    </p>
+                  </div>
+                </div>
+              )}
               {handyman.notes && <p className="text-ink">{handyman.notes}</p>}
             </CardBody>
           </Card>
+
+          {currentUser?.role === "admin" && <HandymanDocuments handymanId={id} />}
         </div>
       </div>
     </>

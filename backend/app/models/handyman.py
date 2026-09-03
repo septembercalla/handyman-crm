@@ -1,7 +1,7 @@
 import uuid
 from decimal import Decimal
 
-from sqlalchemy import Enum, Numeric, String, Text
+from sqlalchemy import JSON, Enum, Float, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -20,7 +20,10 @@ class Handyman(Base, TimestampMixin):
     email: Mapped[str] = mapped_column(String(255), default="", nullable=False)
     #: task categories this handyman can take
     skills: Mapped[list[str]] = mapped_column(
-        ARRAY(Text), default=list, server_default="{}", nullable=False
+        ARRAY(Text).with_variant(JSON(), "sqlite"),
+        default=list,
+        server_default="{}",
+        nullable=False,
     )
     hourly_rate: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
     #: colour of this handyman's map markers
@@ -36,3 +39,9 @@ class Handyman(Base, TimestampMixin):
         index=True,
     )
     notes: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    street_address: Mapped[str] = mapped_column(String(255), default="", nullable=False)
+    city: Mapped[str] = mapped_column(String(128), default="", nullable=False)
+    state: Mapped[str] = mapped_column(String(2), default="", nullable=False)
+    zip: Mapped[str] = mapped_column(String(16), default="", nullable=False)
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)

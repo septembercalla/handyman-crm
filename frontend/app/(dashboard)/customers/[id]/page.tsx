@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { use } from "react";
-import { History, MapPin, Plus } from "lucide-react";
+import { History, MapPin, Pencil, Plus, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Detail } from "@/components/common/field";
+import { CustomerDeleteDialog } from "@/components/customers/customer-delete-dialog";
+import { CustomerDialog } from "@/components/customers/customer-dialog";
 import { MiniTaskTable } from "@/components/tasks/mini-task-table";
 import { MapView } from "@/components/map/map-view";
 import { Button } from "@/components/ui/button";
@@ -49,11 +51,23 @@ export default function CustomerPage({
         title={customer.full_name}
         meta={<span className="tnum">{customer.phone}</span>}
         actions={
-          <Button asChild size="sm">
-            <Link href="/tasks/new">
-              <Plus /> Create Task
-            </Link>
-          </Button>
+          <>
+            <CustomerDialog customer={customer}>
+              <Button variant="outline" size="sm">
+                <Pencil /> Edit
+              </Button>
+            </CustomerDialog>
+            <CustomerDeleteDialog customer={customer}>
+              <Button variant="dangerOutline" size="sm">
+                <Trash2 /> Delete
+              </Button>
+            </CustomerDeleteDialog>
+            <Button asChild size="sm">
+              <Link href="/tasks/new">
+                <Plus /> Create Task
+              </Link>
+            </Button>
+          </>
         }
       />
 

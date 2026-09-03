@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import type { HandymanStatus, TaskCategory } from "@/lib/types";
+import type { Handyman, HandymanStatus, TaskCategory } from "@/lib/types";
 import { CATEGORY_LABEL, TASK_CATEGORIES } from "@/lib/constants";
-import { useCreateHandyman } from "@/lib/api/hooks";
+import { useCreateHandyman, useUpdateHandyman } from "@/lib/api/hooks";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
@@ -29,27 +29,41 @@ const HANDYMAN_COLORS = [
   "#0891B2",
 ];
 
-export function HandymanDialog({ children }: { children: React.ReactNode }) {
+export function HandymanDialog({
+  handyman,
+  children,
+}: {
+  handyman?: Handyman;
+  children: ReactNode;
+}) {
   const createHandyman = useCreateHandyman();
+  const updateHandyman = useUpdateHandyman();
   const [open, setOpen] = useState(false);
-  const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [skills, setSkills] = useState<TaskCategory[]>([]);
-  const [hourlyRate, setHourlyRate] = useState("");
-  const [status, setStatus] = useState<HandymanStatus>("active");
-  const [color, setColor] = useState(DEFAULT_COLOR);
-  const [notes, setNotes] = useState("");
+  const [fullName, setFullName] = useState(handyman?.full_name ?? "");
+  const [phone, setPhone] = useState(handyman?.phone ?? "");
+  const [email, setEmail] = useState(handyman?.email ?? "");
+  const [skills, setSkills] = useState<TaskCategory[]>(handyman?.skills ?? []);
+  const [status, setStatus] = useState<HandymanStatus>(handyman?.status ?? "active");
+  const [color, setColor] = useState(handyman?.color ?? DEFAULT_COLOR);
+  const [notes, setNotes] = useState(handyman?.notes ?? "");
+  const [streetAddress, setStreetAddress] = useState(handyman?.street_address ?? "");
+  const [city, setCity] = useState(handyman?.city ?? "");
+  const [state, setState] = useState(handyman?.state ?? "");
+  const [zip, setZip] = useState(handyman?.zip ?? "");
+  const busy = createHandyman.isPending || updateHandyman.isPending;
 
   function reset() {
-    setFullName("");
-    setPhone("");
-    setEmail("");
-    setSkills([]);
-    setHourlyRate("");
-    setStatus("active");
-    setColor(DEFAULT_COLOR);
-    setNotes("");
+    setFullName(handyman?.full_name ?? "");
+    setPhone(handyman?.phone ?? "");
+    setEmail(handyman?.email ?? "");
+    setSkills(handyman?.skills ?? []);
+    setStatus(handyman?.status ?? "active");
+    setColor(handyman?.color ?? DEFAULT_COLOR);
+    setNotes(handyman?.notes ?? "");
+    setStreetAddress(handyman?.street_address ?? "");
+    setCity(handyman?.city ?? "");
+    setState(handyman?.state ?? "");
+    setZip(handyman?.zip ?? "");
   }
 
   function toggleSkill(skill: TaskCategory, checked: boolean) {
@@ -60,29 +74,32 @@ export function HandymanDialog({ children }: { children: React.ReactNode }) {
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-
-    const parsedRate = hourlyRate === "" ? null : Number(hourlyRate);
-    if (parsedRate !== null && (!Number.isFinite(parsedRate) || parsedRate < 0)) {
-      toast.error("Hourly rate must be zero or greater");
-      return;
-    }
+    const payload = {
+      full_name: fullName.trim(),
+      phone: phone.trim(),
+      email: email.trim(),
+      skills,
+      status,
+      color,
+      notes: notes.trim(),
+      street_address: streetAddress.trim(),
+      city: city.trim(),
+      state: state.trim().toUpperCase(),
+      zip: zip.trim(),
+    };
 
     try {
-      await createHandyman.mutateAsync({
-        full_name: fullName.trim(),
-        phone: phone.trim(),
-        email: email.trim(),
-        skills,
-        hourly_rate: parsedRate,
-        status,
-        color,
-        notes: notes.trim(),
-      });
-      toast.success("Handyman added");
+      if (handyman) {
+        await updateHandyman.mutateAsync({ id: handyman.id, payload });
+        toast.success("Handyman updated");
+      } else {
+        await createHandyman.mutateAsync(payload);
+        toast.success("Handyman added");
+      }
       setOpen(false);
       reset();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not add handyman");
+      toast.error(error instanceof Error ? error.message : "Could not save handyman");
     }
   }
 
@@ -91,21 +108,27 @@ export function HandymanDialog({ children }: { children: React.ReactNode }) {
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
-        if (!next) reset();
+        reset();
       }}
     >
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent
-        title="Add handyman"
-        description="Create a worker profile for scheduling and task assignment."
+        title={handyman ? "Edit handyman" : "Add handyman"}
+        description={
+          handyman
+            ? "Update the worker profile, availability and home location."
+            : "Create a worker profile for scheduling and task assignment."
+        }
         className="max-h-[calc(100vh-2rem)] max-w-2xl overflow-y-auto"
       >
         <form onSubmit={submit} className="space-y-4 p-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
-              <Label htmlFor="handyman-full-name">Full name</Label>
+              <Label htmlFor={`handyman-full-name-${handyman?.id ?? "new"}`}>
+                Full name
+              </Label>
               <Input
-                id="handyman-full-name"
+                id={`handyman-full-name-${handyman?.id ?? "new"}`}
                 autoFocus
                 value={fullName}
                 onChange={(event) => setFullName(event.target.value)}
@@ -115,24 +138,23 @@ export function HandymanDialog({ children }: { children: React.ReactNode }) {
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="handyman-phone">Phone</Label>
+              <Label htmlFor={`handyman-phone-${handyman?.id ?? "new"}`}>Phone</Label>
               <Input
-                id="handyman-phone"
+                id={`handyman-phone-${handyman?.id ?? "new"}`}
                 type="tel"
                 autoComplete="tel"
                 value={phone}
                 onChange={(event) => setPhone(event.target.value)}
                 maxLength={64}
-                required
               />
             </div>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
-              <Label htmlFor="handyman-email">Email</Label>
+              <Label htmlFor={`handyman-email-${handyman?.id ?? "new"}`}>Email</Label>
               <Input
-                id="handyman-email"
+                id={`handyman-email-${handyman?.id ?? "new"}`}
                 type="email"
                 autoComplete="email"
                 value={email}
@@ -142,25 +164,69 @@ export function HandymanDialog({ children }: { children: React.ReactNode }) {
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="handyman-rate">Hourly rate</Label>
-              <div className="relative">
-                <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[13px] text-ink-muted">
-                  $
-                </span>
+              <Label htmlFor={`handyman-status-${handyman?.id ?? "new"}`}>Status</Label>
+              <Select
+                value={status}
+                onValueChange={(value) => setStatus(value as HandymanStatus)}
+              >
+                <SelectTrigger id={`handyman-status-${handyman?.id ?? "new"}`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <fieldset className="space-y-2 rounded-[4px] border border-line p-3">
+            <legend className="px-1 text-[12px] font-medium text-ink">Home address</legend>
+            <p className="text-[11px] text-ink-muted">
+              Private worker location for future route start/end planning.
+            </p>
+            <div className="space-y-1">
+              <Label htmlFor={`handyman-street-${handyman?.id ?? "new"}`}>
+                Street address
+              </Label>
+              <Input
+                id={`handyman-street-${handyman?.id ?? "new"}`}
+                value={streetAddress}
+                onChange={(event) => setStreetAddress(event.target.value)}
+                maxLength={255}
+                placeholder="Optional"
+              />
+            </div>
+            <div className="grid grid-cols-[1fr_70px_96px] gap-3">
+              <div className="space-y-1">
+                <Label htmlFor={`handyman-city-${handyman?.id ?? "new"}`}>City</Label>
                 <Input
-                  id="handyman-rate"
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
-                  step="0.01"
-                  value={hourlyRate}
-                  onChange={(event) => setHourlyRate(event.target.value)}
-                  className="pl-6"
-                  placeholder="Optional"
+                  id={`handyman-city-${handyman?.id ?? "new"}`}
+                  value={city}
+                  onChange={(event) => setCity(event.target.value)}
+                  maxLength={128}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor={`handyman-state-${handyman?.id ?? "new"}`}>State</Label>
+                <Input
+                  id={`handyman-state-${handyman?.id ?? "new"}`}
+                  value={state}
+                  onChange={(event) => setState(event.target.value)}
+                  maxLength={2}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor={`handyman-zip-${handyman?.id ?? "new"}`}>ZIP</Label>
+                <Input
+                  id={`handyman-zip-${handyman?.id ?? "new"}`}
+                  value={zip}
+                  onChange={(event) => setZip(event.target.value)}
+                  maxLength={16}
                 />
               </div>
             </div>
-          </div>
+          </fieldset>
 
           <fieldset className="space-y-2">
             <legend className="text-[12px] font-medium text-ink">Skills</legend>
@@ -180,41 +246,29 @@ export function HandymanDialog({ children }: { children: React.ReactNode }) {
             </div>
           </fieldset>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1">
-              <Label htmlFor="handyman-status">Status</Label>
-              <Select value={status} onValueChange={(value) => setStatus(value as HandymanStatus)}>
-                <SelectTrigger id="handyman-status">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label>Schedule color</Label>
-              <div className="flex h-9 items-center gap-2 rounded-[4px] border border-line px-2.5">
-                {HANDYMAN_COLORS.map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    aria-label={`Use color ${option}`}
-                    aria-pressed={color === option}
-                    onClick={() => setColor(option)}
-                    className="size-5 rounded-full border-2 border-surface outline outline-1 outline-transparent aria-pressed:outline-ink"
-                    style={{ backgroundColor: option }}
-                  />
-                ))}
-              </div>
+          <div className="space-y-1">
+            <Label>Schedule color</Label>
+            <div className="flex h-9 items-center gap-2 rounded-[4px] border border-line px-2.5">
+              {HANDYMAN_COLORS.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  aria-label={`Use color ${option}`}
+                  aria-pressed={color === option}
+                  onClick={() => setColor(option)}
+                  className="size-5 rounded-full border-2 border-surface outline outline-1 outline-transparent aria-pressed:outline-ink"
+                  style={{ backgroundColor: option }}
+                />
+              ))}
             </div>
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="handyman-notes">Internal notes</Label>
+            <Label htmlFor={`handyman-notes-${handyman?.id ?? "new"}`}>
+              Internal notes
+            </Label>
             <Textarea
-              id="handyman-notes"
+              id={`handyman-notes-${handyman?.id ?? "new"}`}
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
               placeholder="Vehicle, tools, service area, specialties, availability, or client communication notes"
@@ -225,8 +279,8 @@ export function HandymanDialog({ children }: { children: React.ReactNode }) {
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={createHandyman.isPending}>
-              {createHandyman.isPending ? "Adding…" : "Add handyman"}
+            <Button type="submit" disabled={busy}>
+              {busy ? "Saving…" : handyman ? "Save changes" : "Add handyman"}
             </Button>
           </div>
         </form>

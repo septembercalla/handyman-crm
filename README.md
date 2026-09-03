@@ -155,6 +155,20 @@ Maps JavaScript API, and a server key in `GOOGLE_MAPS_SERVER_API_KEY` restricted
 the backend service and only Geocoding/Routes APIs. Never put the server key in a
 `NEXT_PUBLIC_*` variable.
 
+## Private handyman documents
+
+Worker documents are represented by metadata in PostgreSQL and file bytes in a
+private storage backend. For local development set `FILE_STORAGE_BACKEND=local`;
+files are written below `FILE_STORAGE_LOCAL_PATH` (default `.private-storage`) and
+are served only by authenticated admin endpoints. `FILE_STORAGE_MAX_MB` controls
+the per-file limit.
+
+Local disk is intentionally rejected when `ENV=production`, because Railway's
+service filesystem is ephemeral. Until an R2/S3 adapter and its private credentials
+are configured, production document endpoints return 503 instead of pretending an
+upload is durable or publishing an insecure URL. Handyman profiles, scheduling and
+all non-document features continue to work normally.
+
 ## Design tokens
 
 Palette, density and typography are defined in `app/globals.css` per SPEC §7:

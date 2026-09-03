@@ -57,6 +57,13 @@ Add a service from the same GitHub repo, then in **Settings**:
 
 Do **not** set `PORT` — Railway injects it.
 
+Handyman document storage is disabled safely in production until a private R2/S3
+adapter is configured. Do not set `FILE_STORAGE_BACKEND=local` on Railway: local
+service files are ephemeral, and the API deliberately rejects that backend when
+`ENV=production`. The current storage-related settings are
+`FILE_STORAGE_BACKEND`, `FILE_STORAGE_LOCAL_PATH`, and `FILE_STORAGE_MAX_MB`; the
+first two are for local development only at this stage.
+
 Deploy. The migration runs by itself (`preDeployCommand`). Check
 `https://<backend-domain>/health` → `{"status":"ok"}` and
 `https://<backend-domain>/docs`.

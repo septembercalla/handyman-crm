@@ -13,7 +13,12 @@ from app.schemas.dashboard import (
     StatusCounts,
     TravelLegOut,
 )
-from app.schemas.handyman import HandymanCreate, HandymanOut, HandymanUpdate
+from app.schemas.handyman import (
+    HandymanCreate,
+    HandymanDocumentOut,
+    HandymanOut,
+    HandymanUpdate,
+)
 from app.schemas.task import (
     AssignRequest,
     SetStatusRequest,
@@ -33,6 +38,7 @@ __all__ = [
     "CustomerUpdate",
     "DashboardStats",
     "HandymanCreate",
+    "HandymanDocumentOut",
     "HandymanOut",
     "HandymanUpdate",
     "LoginRequest",

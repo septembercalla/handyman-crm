@@ -18,6 +18,7 @@ import {
 import type {
   Customer,
   Handyman,
+  HandymanDocumentType,
   Task,
   TaskListParams,
   TaskStatus,
@@ -34,6 +35,7 @@ export const qk = {
   handyman: (id: string) => ["handyman", id] as const,
   handymanDay: (id: string, date: string) => ["handyman", id, "day", date] as const,
   handymanTasks: (id: string) => ["handyman", id, "tasks"] as const,
+  handymanDocuments: (id: string) => ["handyman", id, "documents"] as const,
   customers: (p?: object) => ["customers", p ?? {}] as const,
   customer: (id: string) => ["customer", id] as const,
   customerTasks: (id: string) => ["customer", id, "tasks"] as const,
@@ -209,6 +211,30 @@ export function useCreateHandyman() {
   });
 }
 
+export function useUpdateHandyman() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Partial<Handyman> }) =>
+      handymenApi.update(id, payload),
+    onSuccess: (handyman) => {
+      qc.setQueryData(qk.handyman(handyman.id), handyman);
+      qc.invalidateQueries({ queryKey: ["handymen"] });
+      qc.invalidateQueries({ queryKey: ["schedule"] });
+    },
+  });
+}
+
+export function useDeleteHandyman() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => handymenApi.remove(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["handymen"] });
+      qc.invalidateQueries({ queryKey: ["schedule"] });
+    },
+  });
+}
+
 export function useHandyman(id: string) {
   return useQuery({
     queryKey: qk.handyman(id),
@@ -227,6 +253,43 @@ export function useHandymanTasks(id: string) {
   return useQuery({
     queryKey: qk.handymanTasks(id),
     queryFn: () => handymenApi.tasks(id),
+  });
+}
+
+export function useHandymanDocuments(id: string, enabled: boolean) {
+  return useQuery({
+    queryKey: qk.handymanDocuments(id),
+    queryFn: () => handymenApi.documents(id),
+    enabled,
+  });
+}
+
+export function useUploadHandymanDocument() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      handymanId,
+      documentType,
+      file,
+      notes,
+    }: {
+      handymanId: string;
+      documentType: HandymanDocumentType;
+      file: File;
+      notes: string;
+    }) => handymenApi.uploadDocument(handymanId, { documentType, file, notes }),
+    onSuccess: (document) =>
+      qc.invalidateQueries({ queryKey: qk.handymanDocuments(document.handyman_id) }),
+  });
+}
+
+export function useDeleteHandymanDocument() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ handymanId, documentId }: { handymanId: string; documentId: string }) =>
+      handymenApi.removeDocument(handymanId, documentId),
+    onSuccess: (_, variables) =>
+      qc.invalidateQueries({ queryKey: qk.handymanDocuments(variables.handymanId) }),
   });
 }
 
@@ -256,6 +319,30 @@ export function useCreateCustomer() {
   return useMutation({
     mutationFn: (payload: Partial<Customer>) => customersApi.create(payload),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["customers"] }),
+  });
+}
+
+export function useUpdateCustomer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Partial<Customer> }) =>
+      customersApi.update(id, payload),
+    onSuccess: (customer) => {
+      qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: qk.customer(customer.id) });
+    },
+  });
+}
+
+export function useDeleteCustomer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => customersApi.remove(id),
+    onSuccess: (_, id) => {
+      qc.removeQueries({ queryKey: qk.customer(id) });
+      qc.removeQueries({ queryKey: qk.customerTasks(id) });
+      qc.invalidateQueries({ queryKey: ["customers"] });
+    },
   });
 }
 

@@ -11,6 +11,15 @@ class HandymanStatus(StrEnum):
     inactive = "inactive"
 
 
+class HandymanDocumentType(StrEnum):
+    contract = "contract"
+    driver_license = "driver_license"
+    w9 = "w9"
+    insurance = "insurance"
+    certification = "certification"
+    other = "other"
+
+
 class TaskCategory(StrEnum):
     plumbing = "plumbing"
     electrical = "electrical"

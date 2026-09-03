@@ -18,6 +18,7 @@ from app.models import (
     STATUS_TRANSITIONS,
     TERMINAL_STATUSES,
     Handyman,
+    HandymanStatus,
     Task,
     TaskStatus,
     TaskStatusHistory,
@@ -81,8 +82,21 @@ def assign_task(
             detail="Task is closed and cannot be reassigned",
         )
 
-    if handyman_id is not None and db.get(Handyman, handyman_id) is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Handyman not found")
+    if handyman_id is not None:
+        handyman = db.get(Handyman, handyman_id)
+        if handyman is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Handyman not found",
+            )
+        if (
+            handyman.status is HandymanStatus.inactive
+            and task.handyman_id != handyman_id
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Inactive handymen cannot receive new assignments",
+            )
 
     previous = task.status
     task.handyman_id = handyman_id

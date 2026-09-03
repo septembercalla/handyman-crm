@@ -4,6 +4,8 @@ import type {
   Customer,
   DashboardStats,
   Handyman,
+  HandymanDocument,
+  HandymanDocumentType,
   Paginated,
   ScheduleRow,
   ScheduleTravel,
@@ -42,6 +44,7 @@ type QueryValue = string | number | boolean | null | undefined;
 interface RequestOptions {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
+  formData?: FormData;
   params?: Record<string, QueryValue>;
   /** login and /auth/me handle 401 themselves instead of bouncing to /login */
   skipAuthRedirect?: boolean;
@@ -87,15 +90,25 @@ function redirectToLogin() {
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = "GET", body, params, skipAuthRedirect, retryAuth = true } = options;
+  const {
+    method = "GET",
+    body,
+    formData,
+    params,
+    skipAuthRedirect,
+    retryAuth = true,
+  } = options;
 
   let response: Response;
   try {
     response = await fetch(`${API_URL}${path}${buildQuery(params)}`, {
       method,
       credentials: "include",
-      headers: body === undefined ? undefined : { "Content-Type": "application/json" },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      headers:
+        formData !== undefined || body === undefined
+          ? undefined
+          : { "Content-Type": "application/json" },
+      body: formData ?? (body === undefined ? undefined : JSON.stringify(body)),
     });
   } catch {
     throw new ApiError("Cannot reach the API. Is the backend running?", 0);
@@ -312,6 +325,39 @@ export const handymenApi = {
     return request<Handyman>(`/handymen/${id}`, { method: "PATCH", body: payload });
   },
 
+  remove(id: string): Promise<void> {
+    return request<void>(`/handymen/${id}`, { method: "DELETE" });
+  },
+
+  documents(id: string): Promise<HandymanDocument[]> {
+    return request<HandymanDocument[]>(`/handymen/${id}/documents`);
+  },
+
+  uploadDocument(
+    id: string,
+    payload: { documentType: HandymanDocumentType; file: File; notes: string },
+  ): Promise<HandymanDocument> {
+    const formData = new FormData();
+    formData.set("document_type", payload.documentType);
+    formData.set("file", payload.file);
+    formData.set("notes", payload.notes);
+    return request<HandymanDocument>(`/handymen/${id}/documents`, {
+      method: "POST",
+      formData,
+    });
+  },
+
+  removeDocument(handymanId: string, documentId: string): Promise<void> {
+    return request<void>(`/handymen/${handymanId}/documents/${documentId}`, {
+      method: "DELETE",
+    });
+  },
+
+  documentUrl(handymanId: string, documentId: string, download = false): string {
+    const suffix = download ? "?download=true" : "";
+    return `${API_URL}/handymen/${handymanId}/documents/${documentId}/content${suffix}`;
+  },
+
   /** GET /handymen/{id}/tasks?date= — the day's stops, ordered by time */
   tasksForDay(id: string, date: string): Promise<TaskWithRelations[]> {
     return request<TaskWithRelations[]>(`/handymen/${id}/tasks`, { params: { date } });
@@ -340,6 +386,10 @@ export const customersApi = {
 
   update(id: string, payload: Partial<Customer>): Promise<Customer> {
     return request<Customer>(`/customers/${id}`, { method: "PATCH", body: payload });
+  },
+
+  remove(id: string): Promise<void> {
+    return request<void>(`/customers/${id}`, { method: "DELETE" });
   },
 
   /** GET /customers/{id}/tasks — work history for the site */

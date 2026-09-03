@@ -72,7 +72,6 @@ export default function HandymenPage() {
                   <TH>Skills</TH>
                   <TH>Phone</TH>
                   <TH>Email</TH>
-                  <TH>Rate</TH>
                   <TH>Today</TH>
                   <TH>Status</TH>
                 </TR>
@@ -112,9 +111,6 @@ export default function HandymenPage() {
                     </TD>
                     <TD className="tnum whitespace-nowrap">{h.phone}</TD>
                     <TD className="text-ink-muted">{h.email}</TD>
-                    <TD className="tnum">
-                      {h.hourly_rate ? `$${h.hourly_rate}/h` : "—"}
-                    </TD>
                     <TD className="tnum">{loadByHandyman.get(h.id) ?? 0}</TD>
                     <TD>
                       <span

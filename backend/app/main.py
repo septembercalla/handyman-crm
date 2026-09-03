@@ -4,7 +4,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import auth, customers, dashboard, handymen, schedule, tasks, users
+from app.routers import (
+    auth,
+    customers,
+    dashboard,
+    handyman_documents,
+    handymen,
+    schedule,
+    tasks,
+    users,
+)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -29,6 +38,7 @@ app.add_middleware(
 
 for router in (auth.router, users.router, tasks.router, handymen.router, customers.router):
     app.include_router(router, prefix=API_PREFIX)
+app.include_router(handyman_documents.router, prefix=API_PREFIX)
 app.include_router(schedule.router, prefix=API_PREFIX)
 app.include_router(dashboard.router, prefix=API_PREFIX)
 

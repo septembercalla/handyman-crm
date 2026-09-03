@@ -85,6 +85,29 @@ def update_customer(
     return customer
 
 
+@router.delete("/{customer_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_customer(
+    customer_id: uuid.UUID,
+    db: DbSession,
+    _: CurrentUser,
+) -> None:
+    customer = _get_or_404(db, customer_id)
+    task_count = db.scalar(
+        select(func.count()).select_from(Task).where(Task.customer_id == customer_id)
+    )
+    if task_count:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "This customer has task history and cannot be permanently deleted. "
+                "The customer record must be preserved with its tasks."
+            ),
+        )
+
+    db.delete(customer)
+    db.commit()
+
+
 @router.get("/{customer_id}/tasks", response_model=list[TaskOut])
 def customer_tasks(customer_id: uuid.UUID, db: DbSession, _: CurrentUser) -> list[Task]:
     """Work history for the site — newest first."""
