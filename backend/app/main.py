@@ -1,7 +1,8 @@
 import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.routers import (
@@ -15,6 +16,7 @@ from app.routers import (
     tasks,
     users,
 )
+from app.services.storage import StorageError
 
 logging.basicConfig(level=logging.INFO)
 
@@ -36,6 +38,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(StorageError)
+async def storage_error_handler(_: Request, exc: StorageError) -> JSONResponse:
+    return JSONResponse(status_code=503, content={"detail": str(exc)})
+
 
 for router in (auth.router, users.router, tasks.router, handymen.router, customers.router):
     app.include_router(router, prefix=API_PREFIX)

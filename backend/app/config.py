@@ -23,11 +23,14 @@ class Settings(BaseSettings):
     GOOGLE_MAPS_SERVER_API_KEY: str = ""
     BUSINESS_TIMEZONE: str = "America/Chicago"
 
-    # Private worker documents. `local` is intended for development only; the
-    # interface in app.services.storage can be swapped for R2/S3 in production.
+    # Private worker documents: local for development, R2 for production.
     FILE_STORAGE_BACKEND: str = "local"
     FILE_STORAGE_LOCAL_PATH: str = ".private-storage"
     FILE_STORAGE_MAX_MB: int = 10
+    R2_BUCKET_NAME: str = ""
+    R2_ENDPOINT: str = ""
+    R2_ACCESS_KEY_ID: str = ""
+    R2_SECRET_ACCESS_KEY: str = ""
 
     CORS_ORIGINS: str = "http://localhost:3000"
 
