@@ -10,6 +10,7 @@ from app.routers import (
     dashboard,
     handyman_documents,
     handymen,
+    payroll,
     schedule,
     tasks,
     users,
@@ -41,6 +42,7 @@ for router in (auth.router, users.router, tasks.router, handymen.router, custome
 app.include_router(handyman_documents.router, prefix=API_PREFIX)
 app.include_router(schedule.router, prefix=API_PREFIX)
 app.include_router(dashboard.router, prefix=API_PREFIX)
+app.include_router(payroll.router, prefix=API_PREFIX)
 
 
 @app.get("/health", tags=["meta"])

@@ -6,6 +6,7 @@ import { use } from "react";
 import { toast } from "sonner";
 import {
   AlertTriangle,
+  DollarSign,
   History,
   MapPin,
   Pencil,
@@ -22,11 +23,13 @@ import { MapView } from "@/components/map/map-view";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useDeleteTask, useTask } from "@/lib/api/hooks";
+import { useCurrentUser, useDeleteTask, useTask } from "@/lib/api/hooks";
 import { CATEGORY_LABEL } from "@/lib/constants";
 import {
   dateTime,
   duration,
+  formatMoney,
+  formatPercent,
   fullAddress,
   longDate,
   timeWindow,
@@ -39,6 +42,7 @@ export default function TaskDetailPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
+  const { data: currentUser } = useCurrentUser();
   const { data: task, isLoading } = useTask(id);
   const remove = useDeleteTask();
 
@@ -211,6 +215,63 @@ export default function TaskDetailPage({
                 </>
               ) : (
                 <p className="text-[13px] text-ink-muted">No customer linked</p>
+              )}
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle icon={<DollarSign />}>Financials</CardTitle>
+            </CardHeader>
+            <CardBody className="space-y-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Detail label="Labor price">
+                  <span className="tnum">{formatMoney(task.labor_price)}</span>
+                </Detail>
+                <Detail label="Materials cost">
+                  <span className="tnum">{formatMoney(task.materials_cost)}</span>
+                </Detail>
+                <Detail label="Materials paid by">
+                  <span className="capitalize">{task.materials_paid_by}</span>
+                </Detail>
+                <Detail label="Customer total">
+                  <span className="font-semibold tnum">
+                    {formatMoney(task.customer_total)}
+                  </span>
+                </Detail>
+              </div>
+
+              {currentUser?.role === "admin" && (
+                <div className="grid gap-3 border-t border-line pt-3 sm:grid-cols-2">
+                  <Detail label="Payout rate">
+                    {task.handyman_payout_percent === null ? (
+                      <span className="font-medium text-[#a15c00]">Payout not set</span>
+                    ) : (
+                      <span className="tnum">
+                        {formatPercent(task.handyman_payout_percent)}
+                      </span>
+                    )}
+                  </Detail>
+                  <Detail label="Labor earnings">
+                    <span className="tnum">
+                      {task.handyman_labor_earnings === null
+                        ? "—"
+                        : formatMoney(task.handyman_labor_earnings)}
+                    </span>
+                  </Detail>
+                  <Detail label="Materials reimbursement">
+                    <span className="tnum">
+                      {formatMoney(task.materials_reimbursement)}
+                    </span>
+                  </Detail>
+                  <Detail label="Total handyman payout">
+                    <span className="font-semibold tnum">
+                      {task.total_handyman_payout === null
+                        ? "—"
+                        : formatMoney(task.total_handyman_payout)}
+                    </span>
+                  </Detail>
+                </div>
               )}
             </CardBody>
           </Card>

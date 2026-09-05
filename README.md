@@ -155,6 +155,15 @@ Maps JavaScript API, and a server key in `GOOGLE_MAPS_SERVER_API_KEY` restricted
 the backend service and only Geocoding/Routes APIs. Never put the server key in a
 `NEXT_PUBLIC_*` variable.
 
+## Payroll timezone
+
+`BUSINESS_TIMEZONE` on the backend controls payroll week boundaries, the default
+current week, and the completion dates displayed in Payroll. It defaults to
+`America/Chicago`; set an IANA timezone for the business before using payroll.
+Weeks run from local Monday midnight to the next local Monday midnight, including
+daylight-saving changes. The Payroll page displays the configured timezone and
+uses dates returned by the server rather than the browser's timezone.
+
 ## Private handyman documents
 
 Worker documents are represented by metadata in PostgreSQL and file bytes in a

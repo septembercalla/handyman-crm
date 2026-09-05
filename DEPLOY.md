@@ -50,6 +50,7 @@ Add a service from the same GitHub repo, then in **Settings**:
 | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` — use the reference picker, not a literal |
 | `SECRET_KEY` | a long random string: `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
 | `ENV` | `production` |
+| `BUSINESS_TIMEZONE` | `America/Chicago` (set the business's IANA timezone) |
 | `CORS_ORIGINS` | placeholder for now, e.g. `https://example.com` — fixed in step 5 |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `60` (optional) |
 | `REFRESH_TOKEN_EXPIRE_DAYS` | `14` (optional) |

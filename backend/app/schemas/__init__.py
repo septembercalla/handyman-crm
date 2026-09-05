@@ -19,6 +19,7 @@ from app.schemas.handyman import (
     HandymanOut,
     HandymanUpdate,
 )
+from app.schemas.payroll import HandymanPayrollOut, PayrollTaskOut, WeeklyPayrollOut
 from app.schemas.task import (
     AssignRequest,
     SetStatusRequest,
@@ -41,9 +42,11 @@ __all__ = [
     "HandymanDocumentOut",
     "HandymanOut",
     "HandymanUpdate",
+    "HandymanPayrollOut",
     "LoginRequest",
     "Paginated",
     "PasswordResetRequest",
+    "PayrollTaskOut",
     "ScheduleRow",
     "ScheduleTravelOut",
     "SetStatusRequest",
@@ -57,4 +60,5 @@ __all__ = [
     "UserOut",
     "UserCreate",
     "UserUpdate",
+    "WeeklyPayrollOut",
 ]

@@ -223,3 +223,44 @@ def test_documents_are_private_and_admin_only(
     )
     assert removed.status_code == 204
     assert client.get(content_path).status_code == 404
+
+
+def test_profile_deletion_cannot_bypass_document_permissions(
+    client: TestClient, db: Session, users: dict[str, User], handyman_tables: None,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    # Match PostgreSQL's ON DELETE CASCADE behavior in this SQLite test.
+    db.connection().exec_driver_sql("PRAGMA foreign_keys=ON")
+    monkeypatch.setattr(handyman_routes, "geocode", lambda *args: None)
+    storage = LocalPrivateStorage(tmp_path / "documents")
+    monkeypatch.setattr(handyman_routes, "get_private_storage", lambda: storage)
+    app.dependency_overrides[document_routes._storage] = lambda: storage
+    login(client, users["admin"].email, "admin-password")
+    handyman = client.post("/api/v1/handymen", json=handyman_payload()).json()
+    base = f"/api/v1/handymen/{handyman['id']}"
+    uploaded = client.post(
+        f"{base}/documents", data={"document_type": "contract"},
+        files={"file": ("contract.pdf", b"%PDF-1.7\nprivate", "application/pdf")},
+    )
+    assert uploaded.status_code == 201, uploaded.text
+    document_id = uuid.UUID(uploaded.json()["id"])
+    document = db.get(HandymanDocument, document_id)
+    assert document is not None
+    storage_key = document.storage_key
+
+    login(client, users["dispatcher"].email, "worker-password")
+    assert client.delete(f"{base}/documents/{document_id}").status_code == 403
+    assert client.delete(base).status_code == 403
+    assert db.get(Handyman, uuid.UUID(handyman["id"])) is not None
+    assert db.get(HandymanDocument, document_id) is not None
+    with storage.open(storage_key) as source:
+        assert source.read() == b"%PDF-1.7\nprivate"
+
+    login(client, users["admin"].email, "admin-password")
+    response = client.delete(base)
+    assert response.status_code == 204, response.text
+    db.expire_all()
+    assert db.get(Handyman, uuid.UUID(handyman["id"])) is None
+    assert db.get(HandymanDocument, document_id) is None
+    with pytest.raises(FileNotFoundError):
+        storage.open(storage_key)

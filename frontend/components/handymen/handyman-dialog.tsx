@@ -4,7 +4,11 @@ import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import type { Handyman, HandymanStatus, TaskCategory } from "@/lib/types";
 import { CATEGORY_LABEL, TASK_CATEGORIES } from "@/lib/constants";
-import { useCreateHandyman, useUpdateHandyman } from "@/lib/api/hooks";
+import {
+  useCreateHandyman,
+  useCurrentUser,
+  useUpdateHandyman,
+} from "@/lib/api/hooks";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
@@ -38,6 +42,7 @@ export function HandymanDialog({
 }) {
   const createHandyman = useCreateHandyman();
   const updateHandyman = useUpdateHandyman();
+  const { data: currentUser } = useCurrentUser();
   const [open, setOpen] = useState(false);
   const [fullName, setFullName] = useState(handyman?.full_name ?? "");
   const [phone, setPhone] = useState(handyman?.phone ?? "");
@@ -50,6 +55,9 @@ export function HandymanDialog({
   const [city, setCity] = useState(handyman?.city ?? "");
   const [state, setState] = useState(handyman?.state ?? "");
   const [zip, setZip] = useState(handyman?.zip ?? "");
+  const [defaultPayoutPercent, setDefaultPayoutPercent] = useState(
+    handyman?.default_payout_percent ?? "60.00",
+  );
   const busy = createHandyman.isPending || updateHandyman.isPending;
 
   function reset() {
@@ -64,6 +72,7 @@ export function HandymanDialog({
     setCity(handyman?.city ?? "");
     setState(handyman?.state ?? "");
     setZip(handyman?.zip ?? "");
+    setDefaultPayoutPercent(handyman?.default_payout_percent ?? "60.00");
   }
 
   function toggleSkill(skill: TaskCategory, checked: boolean) {
@@ -74,6 +83,15 @@ export function HandymanDialog({
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    if (
+      currentUser?.role === "admin" &&
+      (!/^\d+(\.\d{1,2})?$/.test(defaultPayoutPercent.trim()) ||
+        Number(defaultPayoutPercent) < 0 ||
+        Number(defaultPayoutPercent) > 100)
+    ) {
+      toast.error("Default payout must be between 0% and 100%");
+      return;
+    }
     const payload = {
       full_name: fullName.trim(),
       phone: phone.trim(),
@@ -86,6 +104,9 @@ export function HandymanDialog({
       city: city.trim(),
       state: state.trim().toUpperCase(),
       zip: zip.trim(),
+      ...(currentUser?.role === "admin"
+        ? { default_payout_percent: defaultPayoutPercent.trim() }
+        : {}),
     };
 
     try {
@@ -262,6 +283,34 @@ export function HandymanDialog({
               ))}
             </div>
           </div>
+
+          {currentUser?.role === "admin" && (
+            <div className="max-w-[220px] space-y-1">
+              <Label htmlFor={`handyman-payout-${handyman?.id ?? "new"}`}>
+                Default payout %
+              </Label>
+              <div className="relative">
+                <Input
+                  id={`handyman-payout-${handyman?.id ?? "new"}`}
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={defaultPayoutPercent}
+                  onChange={(event) => setDefaultPayoutPercent(event.target.value)}
+                  className="pr-7"
+                  required
+                />
+                <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[13px] text-ink-muted">
+                  %
+                </span>
+              </div>
+              <p className="text-[11px] leading-4 text-ink-muted">
+                Copied into each task when this handyman is assigned.
+              </p>
+            </div>
+          )}
 
           <div className="space-y-1">
             <Label htmlFor={`handyman-notes-${handyman?.id ?? "new"}`}>

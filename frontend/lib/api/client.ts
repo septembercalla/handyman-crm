@@ -7,6 +7,7 @@ import type {
   HandymanDocument,
   HandymanDocumentType,
   Paginated,
+  WeeklyPayroll,
   ScheduleRow,
   ScheduleTravel,
   Task,
@@ -413,6 +414,14 @@ export const scheduleApi = {
 
   travel(date: string): Promise<ScheduleTravel> {
     return request<ScheduleTravel>("/schedule/travel", { params: { date } });
+  },
+};
+
+export const payrollApi = {
+  week(weekStart?: string): Promise<WeeklyPayroll> {
+    return request<WeeklyPayroll>("/payroll", {
+      params: { week_start: weekStart },
+    });
   },
 };
 

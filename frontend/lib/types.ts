@@ -30,6 +30,7 @@ export interface Handyman {
   email: string;
   skills: TaskCategory[];
   hourly_rate: number | null;
+  default_payout_percent: string;
   /** colour of this handyman's map markers */
   color: string;
   status: HandymanStatus;
@@ -82,6 +83,7 @@ export type TaskCategory =
   | "other";
 
 export type TaskPriority = "low" | "normal" | "high" | "urgent";
+export type MaterialsPaidBy = "company" | "handyman" | "customer";
 
 export type TaskStatus =
   | "new"
@@ -114,7 +116,14 @@ export interface Task {
   time_window_end: string | null;
   estimated_duration_min: number | null;
 
-  price: number | null;
+  labor_price: string;
+  materials_cost: string;
+  materials_paid_by: MaterialsPaidBy;
+  handyman_payout_percent: string | null;
+  customer_total: string;
+  handyman_labor_earnings: string | null;
+  materials_reimbursement: string;
+  total_handyman_payout: string | null;
   internal_notes: string;
 
   created_by: string;
@@ -189,4 +198,39 @@ export interface TravelLeg {
 export interface ScheduleTravel {
   routes_configured: boolean;
   legs: TravelLeg[];
+}
+
+export interface PayrollTask {
+  task_id: string;
+  task_number: string;
+  completed_at: string;
+  completed_date: string;
+  customer_name: string;
+  labor_price: string;
+  materials_cost: string;
+  materials_paid_by: MaterialsPaidBy;
+  payout_percent: string | null;
+  labor_earnings: string | null;
+  materials_reimbursement: string | null;
+  total_payout: string | null;
+}
+
+export interface HandymanPayroll {
+  handyman_id: string;
+  handyman_name: string;
+  completed_jobs: number;
+  calculated_jobs: number;
+  payout_not_set: number;
+  labor_revenue: string;
+  labor_earnings: string;
+  materials_reimbursement: string;
+  total_payout: string;
+  tasks: PayrollTask[];
+}
+
+export interface WeeklyPayroll {
+  timezone: string;
+  week_start: string;
+  week_end: string;
+  handymen: HandymanPayroll[];
 }

@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -13,6 +14,9 @@ class HandymanBase(BaseModel):
     skills: list[TaskCategory] = Field(default_factory=list)
     #: exposed as a JSON number so it matches the TS type on the frontend
     hourly_rate: float | None = None
+    default_payout_percent: Decimal = Field(
+        default=Decimal("60.00"), ge=0, le=100, max_digits=5, decimal_places=2
+    )
     color: str = "#1A6FE0"
     status: HandymanStatus = HandymanStatus.active
     notes: str = ""
@@ -32,6 +36,9 @@ class HandymanUpdate(BaseModel):
     email: str | None = None
     skills: list[TaskCategory] | None = None
     hourly_rate: float | None = None
+    default_payout_percent: Decimal = Field(
+        default=Decimal("60.00"), ge=0, le=100, max_digits=5, decimal_places=2
+    )
     color: str | None = None
     status: HandymanStatus | None = None
     notes: str | None = None

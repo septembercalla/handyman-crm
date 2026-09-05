@@ -38,6 +38,12 @@ class TaskPriority(StrEnum):
     urgent = "urgent"
 
 
+class MaterialsPaidBy(StrEnum):
+    company = "company"
+    handyman = "handyman"
+    customer = "customer"
+
+
 class TaskStatus(StrEnum):
     new = "new"
     assigned = "assigned"

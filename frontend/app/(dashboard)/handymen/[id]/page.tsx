@@ -31,6 +31,7 @@ import { CATEGORY_LABEL } from "@/lib/constants";
 import {
   addDays,
   duration,
+  formatPercent,
   fullAddress,
   longDate,
   timeWindow,
@@ -307,6 +308,16 @@ export default function HandymanPage({
                   </span>
                 ))}
               </div>
+              {currentUser?.role === "admin" && (
+                <div className="text-ink-muted">
+                  <p className="text-[11px] font-medium uppercase tracking-wide">
+                    Default payout
+                  </p>
+                  <p className="mt-0.5 font-medium text-ink">
+                    {formatPercent(handyman.default_payout_percent)} of labor
+                  </p>
+                </div>
+              )}
               {(handyman.street_address ||
                 handyman.city ||
                 handyman.state ||

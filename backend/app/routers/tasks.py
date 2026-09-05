@@ -16,6 +16,7 @@ from app.models import (
     TaskStatus,
     TaskStatusHistory,
     User,
+    UserRole,
 )
 from app.schemas import (
     AssignRequest,
@@ -50,6 +51,12 @@ ORDERING_FIELDS = {
 }
 
 ADDRESS_FIELDS = {"street_address", "city", "state", "zip"}
+FINANCIAL_FIELDS = {
+    "labor_price",
+    "materials_cost",
+    "materials_paid_by",
+    "handyman_payout_percent",
+}
 
 
 def _apply_filters(
@@ -164,7 +171,16 @@ def create_task(payload: TaskCreate, db: DbSession, user: CurrentUser) -> Task:
     if payload.handyman_id and db.get(Handyman, payload.handyman_id) is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Handyman not found")
 
-    data = payload.model_dump(exclude={"task_number", "handyman_id"})
+    payout_was_set = "handyman_payout_percent" in payload.model_fields_set
+    if payout_was_set and user.role is not UserRole.admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrator access required to change payout percentage",
+        )
+
+    data = payload.model_dump(
+        exclude={"task_number", "handyman_id", "handyman_payout_percent"}
+    )
     task = Task(**data, created_by=user.id)
     task.task_number = (payload.task_number or "").strip() or next_task_number(db)
 
@@ -174,6 +190,13 @@ def create_task(payload: TaskCreate, db: DbSession, user: CurrentUser) -> Task:
 
     if payload.handyman_id:
         assign_task(db, task, payload.handyman_id, user)
+    if payout_was_set:
+        if task.handyman_id is None and payload.handyman_payout_percent is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Assign a handyman before setting payout percentage",
+            )
+        task.handyman_payout_percent = payload.handyman_payout_percent
 
     refresh_coordinates(task)
 
@@ -194,11 +217,24 @@ def update_task(
     task = get_task_or_404(db, task_id)
     data = payload.model_dump(exclude_unset=True)
 
-    # Closed tasks accept notes only (SPEC §4).
+    payout_was_set = "handyman_payout_percent" in data
+    if payout_was_set and user.role is not UserRole.admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrator access required to change payout percentage",
+        )
+
+    # Operational details stay locked after closure. Financial corrections remain
+    # possible because the UI explicitly confirms changes to completed payroll.
     if task.status in {TaskStatus.done, TaskStatus.cancelled}:
-        data = {k: v for k, v in data.items() if k == "internal_notes"}
+        data = {
+            key: value
+            for key, value in data.items()
+            if key == "internal_notes" or key in FINANCIAL_FIELDS
+        }
 
     handyman_id = data.pop("handyman_id", "__unset__")
+    payout_percent = data.pop("handyman_payout_percent", "__unset__")
     address_changed = any(f in data for f in ADDRESS_FIELDS)
 
     for key, value in data.items():
@@ -206,6 +242,14 @@ def update_task(
 
     if handyman_id != "__unset__":
         assign_task(db, task, handyman_id, user)
+
+    if payout_percent != "__unset__":
+        if task.handyman_id is None and payout_percent is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Assign a handyman before setting payout percentage",
+            )
+        task.handyman_payout_percent = payout_percent
 
     if address_changed:
         refresh_coordinates(task)
@@ -227,7 +271,13 @@ def assign(
     task_id: uuid.UUID, payload: AssignRequest, db: DbSession, user: CurrentUser
 ) -> Task:
     task = get_task_or_404(db, task_id)
-    assign_task(db, task, payload.handyman_id, user)
+    assign_task(
+        db,
+        task,
+        payload.handyman_id,
+        user,
+        explicit_assignment=True,
+    )
     db.commit()
     db.refresh(task)
     return task

@@ -100,3 +100,51 @@ export function addDays(iso: string, days: number): string {
   d.setDate(d.getDate() + days);
   return toISODate(d);
 }
+
+export function currentWeekStart(): string {
+  const today = new Date();
+  const daysSinceMonday = (today.getDay() + 6) % 7;
+  today.setDate(today.getDate() - daysSinceMonday);
+  return toISODate(today);
+}
+
+function decimalParts(value: string | number | null | undefined) {
+  const raw = String(value ?? "0").trim();
+  const match = raw.match(/^(-?)(\d*)(?:\.(\d*))?$/);
+  if (!match) return { negative: false, whole: "0", fraction: "00" };
+  return {
+    negative: match[1] === "-",
+    whole: match[2] || "0",
+    fraction: (match[3] ?? "").padEnd(2, "0").slice(0, 2),
+  };
+}
+
+function moneyCents(value: string | number | null | undefined): number {
+  const parts = decimalParts(value);
+  const cents = Number(parts.whole) * 100 + Number(parts.fraction);
+  return parts.negative ? -cents : cents;
+}
+
+export function addMoney(
+  left: string | number | null | undefined,
+  right: string | number | null | undefined,
+): string {
+  const cents = moneyCents(left) + moneyCents(right);
+  const negative = cents < 0;
+  const absolute = negative ? -cents : cents;
+  const whole = Math.trunc(absolute / 100);
+  const fraction = String(absolute % 100).padStart(2, "0");
+  return `${negative ? "-" : ""}${whole}.${fraction}`;
+}
+
+export function formatMoney(value: string | number | null | undefined): string {
+  const parts = decimalParts(value);
+  const grouped = parts.whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return `${parts.negative ? "-" : ""}$${grouped}.${parts.fraction}`;
+}
+
+export function formatPercent(value: string | number | null | undefined): string {
+  if (value === null || value === undefined || value === "") return "—";
+  const raw = String(value).replace(/\.00$/, "").replace(/(\.\d)0$/, "$1");
+  return `${raw}%`;
+}

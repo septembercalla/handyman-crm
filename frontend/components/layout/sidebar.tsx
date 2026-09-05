@@ -7,6 +7,7 @@ import {
   CalendarRange,
   ClipboardList,
   Home,
+  Landmark,
   UserCog,
   Users,
   Wrench,
@@ -48,7 +49,10 @@ export function Sidebar() {
         {[
           ...NAV,
           ...(user?.role === "admin"
-            ? [{ href: "/users", label: "Users", icon: UserCog }]
+            ? [
+                { href: "/payroll", label: "Payroll", icon: Landmark },
+                { href: "/users", label: "Users", icon: UserCog },
+              ]
             : []),
         ].map((item) => {
           const active = item.exact

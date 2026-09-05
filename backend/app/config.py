@@ -1,4 +1,5 @@
 from functools import lru_cache
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -20,6 +21,7 @@ class Settings(BaseSettings):
 
     GOOGLE_MAPS_API_KEY: str = ""
     GOOGLE_MAPS_SERVER_API_KEY: str = ""
+    BUSINESS_TIMEZONE: str = "America/Chicago"
 
     # Private worker documents. `local` is intended for development only; the
     # interface in app.services.storage can be swapped for R2/S3 in production.
@@ -31,6 +33,15 @@ class Settings(BaseSettings):
 
     PORT: int = 8000
     ENV: str = "development"
+
+    @field_validator("BUSINESS_TIMEZONE")
+    @classmethod
+    def validate_business_timezone(cls, value: str) -> str:
+        try:
+            ZoneInfo(value)
+        except (ZoneInfoNotFoundError, ValueError) as exc:
+            raise ValueError("BUSINESS_TIMEZONE must be a valid IANA timezone") from exc
+        return value
 
     @field_validator("DATABASE_URL")
     @classmethod

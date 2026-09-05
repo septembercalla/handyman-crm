@@ -26,6 +26,12 @@ class Handyman(Base, TimestampMixin):
         nullable=False,
     )
     hourly_rate: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    default_payout_percent: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2),
+        default=Decimal("60.00"),
+        server_default="60.00",
+        nullable=False,
+    )
     #: colour of this handyman's map markers
     color: Mapped[str] = mapped_column(String(9), default="#1A6FE0", nullable=False)
     status: Mapped[HandymanStatus] = mapped_column(

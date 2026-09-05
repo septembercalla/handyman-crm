@@ -20,7 +20,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
 from app.models.customer import Customer
-from app.models.enums import TaskCategory, TaskPriority, TaskStatus
+from app.models.enums import MaterialsPaidBy, TaskCategory, TaskPriority, TaskStatus
 from app.models.handyman import Handyman
 
 
@@ -75,8 +75,24 @@ class Task(Base, TimestampMixin):
     time_window_end: Mapped[time | None] = mapped_column(Time, nullable=True)
     estimated_duration_min: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
-    #: kept for later — not shown in the MVP UI
+    #: Legacy placeholder retained until a separate data audit establishes what
+    #: any historical non-null values meant. New financial logic must not use it.
     price: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    labor_price: Mapped[Decimal] = mapped_column(
+        Numeric(10, 2), default=Decimal("0.00"), server_default="0.00", nullable=False
+    )
+    materials_cost: Mapped[Decimal] = mapped_column(
+        Numeric(10, 2), default=Decimal("0.00"), server_default="0.00", nullable=False
+    )
+    materials_paid_by: Mapped[MaterialsPaidBy] = mapped_column(
+        _enum(MaterialsPaidBy, "materials_paid_by"),
+        default=MaterialsPaidBy.company,
+        server_default=MaterialsPaidBy.company.value,
+        nullable=False,
+    )
+    handyman_payout_percent: Mapped[Decimal | None] = mapped_column(
+        Numeric(5, 2), nullable=True
+    )
     internal_notes: Mapped[str] = mapped_column(Text, default="", nullable=False)
 
     created_by: Mapped[uuid.UUID | None] = mapped_column(

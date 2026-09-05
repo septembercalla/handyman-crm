@@ -11,6 +11,7 @@ import {
   customersApi,
   dashboardApi,
   handymenApi,
+  payrollApi,
   scheduleApi,
   tasksApi,
   usersApi,
@@ -43,11 +44,21 @@ export const qk = {
   scheduleTravel: (date: string) => ["schedule", "travel", date] as const,
   unassigned: (date?: string) => ["unassigned", date ?? "all"] as const,
   stats: () => ["dashboard", "stats"] as const,
+  payroll: (weekStart?: string) => ["payroll", weekStart ?? "current"] as const,
 };
 
 /** everything that could have changed after a task mutation */
 function invalidateTaskScopes(qc: ReturnType<typeof useQueryClient>) {
-  ["tasks", "task", "handyman", "customer", "schedule", "unassigned", "dashboard"].forEach(
+  [
+    "tasks",
+    "task",
+    "handyman",
+    "customer",
+    "schedule",
+    "unassigned",
+    "dashboard",
+    "payroll",
+  ].forEach(
     (key) => qc.invalidateQueries({ queryKey: [key] }),
   );
 }
@@ -365,6 +376,14 @@ export function useScheduleTravel(date: string) {
     queryKey: qk.scheduleTravel(date),
     queryFn: () => scheduleApi.travel(date),
     retry: false,
+  });
+}
+
+export function usePayroll(weekStart?: string, enabled = true) {
+  return useQuery({
+    queryKey: qk.payroll(weekStart),
+    queryFn: () => payrollApi.week(weekStart),
+    enabled,
   });
 }
 

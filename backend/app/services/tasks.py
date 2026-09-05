@@ -69,6 +69,8 @@ def assign_task(
     task: Task,
     handyman_id: uuid.UUID | None,
     user: User | None,
+    *,
+    explicit_assignment: bool = False,
 ) -> Task:
     """
     Assign or unassign a handyman.
@@ -99,7 +101,12 @@ def assign_task(
             )
 
     previous = task.status
+    handyman_changed = task.handyman_id != handyman_id
     task.handyman_id = handyman_id
+    if handyman_changed or (explicit_assignment and task.handyman_payout_percent is None):
+        task.handyman_payout_percent = (
+            handyman.default_payout_percent if handyman_id is not None else None
+        )
 
     if handyman_id and task.status == TaskStatus.new:
         task.status = TaskStatus.assigned
@@ -140,6 +147,7 @@ def set_status(db: Session, task: Task, new_status: TaskStatus, user: User | Non
     if new_status == TaskStatus.new:
         # unassigned back to the pool
         task.handyman_id = None
+        task.handyman_payout_percent = None
 
     record_status_change(db, task, previous, new_status, user)
     return task

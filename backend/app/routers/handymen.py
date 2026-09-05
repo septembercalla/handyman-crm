@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, or_, select
 
 from app.core.deps import CurrentUser, DbSession
-from app.models import Handyman, HandymanDocument, HandymanStatus, Task
+from app.models import Handyman, HandymanDocument, HandymanStatus, Task, UserRole
 from app.schemas import HandymanCreate, HandymanOut, HandymanUpdate, TaskOut
 from app.services.geocoding import geocode
 from app.services.storage import get_private_storage
@@ -60,7 +60,12 @@ def list_handymen(
 
 
 @router.post("", response_model=HandymanOut, status_code=status.HTTP_201_CREATED)
-def create_handyman(payload: HandymanCreate, db: DbSession, _: CurrentUser) -> Handyman:
+def create_handyman(payload: HandymanCreate, db: DbSession, user: CurrentUser) -> Handyman:
+    if "default_payout_percent" in payload.model_fields_set and user.role is not UserRole.admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrator access required to set payout percentage",
+        )
     handyman = Handyman(**payload.model_dump())
     _refresh_coordinates(handyman)
     db.add(handyman)
@@ -76,10 +81,15 @@ def get_handyman(handyman_id: uuid.UUID, db: DbSession, _: CurrentUser) -> Handy
 
 @router.patch("/{handyman_id}", response_model=HandymanOut)
 def update_handyman(
-    handyman_id: uuid.UUID, payload: HandymanUpdate, db: DbSession, _: CurrentUser
+    handyman_id: uuid.UUID, payload: HandymanUpdate, db: DbSession, user: CurrentUser
 ) -> Handyman:
     handyman = _get_or_404(db, handyman_id)
     data = payload.model_dump(exclude_unset=True)
+    if "default_payout_percent" in data and user.role is not UserRole.admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrator access required to change payout percentage",
+        )
     address_changed = bool(ADDRESS_FIELDS.intersection(data))
     for key, value in data.items():
         setattr(handyman, key, value)
@@ -94,7 +104,7 @@ def update_handyman(
 def delete_handyman(
     handyman_id: uuid.UUID,
     db: DbSession,
-    _: CurrentUser,
+    user: CurrentUser,
 ) -> None:
     handyman = _get_or_404(db, handyman_id)
     task_count = db.scalar(
@@ -119,6 +129,11 @@ def delete_handyman(
         .all()
     )
     if documents:
+        if user.role is not UserRole.admin:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Administrator access required to delete a profile with documents",
+            )
         try:
             storage = get_private_storage()
         except RuntimeError as exc:

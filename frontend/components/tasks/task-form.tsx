@@ -10,6 +10,7 @@ import {
   AlertTriangle,
   CalendarClock,
   ClipboardList,
+  DollarSign,
   UserRound,
 } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
@@ -30,6 +31,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { TimeSelect } from "@/components/ui/time-select";
 import {
   useCreateTask,
+  useCurrentUser,
   useHandymen,
   useTasks,
   useUpdateTask,
@@ -40,9 +42,13 @@ import {
   TASK_CATEGORIES,
   TASK_PRIORITIES,
 } from "@/lib/constants";
-import { timeWindow, todayISO } from "@/lib/format";
+import { addMoney, formatMoney, timeWindow, todayISO } from "@/lib/format";
 import { dayWorkloadLabel, findTimeConflicts, getTimeRange } from "@/lib/scheduling";
-import type { TaskCategory, TaskWithRelations } from "@/lib/types";
+import type {
+  MaterialsPaidBy,
+  TaskCategory,
+  TaskWithRelations,
+} from "@/lib/types";
 
 const UNASSIGNED = "__none__";
 
@@ -67,6 +73,25 @@ const DEFAULT_DURATION: Record<TaskCategory, number> = {
   general: 90,
   other: 90,
 };
+
+const moneyField = z
+  .string()
+  .trim()
+  .refine((value) => /^\d+(\.\d{1,2})?$/.test(value || "0"), {
+    message: "Use a non-negative amount with up to 2 decimals",
+  });
+
+const payoutField = z
+  .string()
+  .trim()
+  .refine(
+    (value) =>
+      value === "" ||
+      (/^\d+(\.\d{1,2})?$/.test(value) &&
+        Number(value) >= 0 &&
+        Number(value) <= 100),
+    { message: "Use a percentage from 0 to 100" },
+  );
 
 const schema = z
   .object({
@@ -98,6 +123,10 @@ const schema = z
     estimated_duration_min: z.string().optional(),
 
     handyman_id: z.string().optional(),
+    labor_price: moneyField,
+    materials_cost: moneyField,
+    materials_paid_by: z.enum(["company", "handyman", "customer"]),
+    handyman_payout_percent: payoutField,
     internal_notes: z.string().optional(),
   })
   .superRefine((values, context) => {
@@ -120,7 +149,9 @@ export function TaskForm({ task }: { task?: TaskWithRelations }) {
   const router = useRouter();
   const create = useCreateTask();
   const update = useUpdateTask();
+  const { data: currentUser } = useCurrentUser();
   const { data: handymen = [] } = useHandymen({ status: "active" });
+  const isAdmin = currentUser?.role === "admin";
 
   const {
     register,
@@ -148,6 +179,10 @@ export function TaskForm({ task }: { task?: TaskWithRelations }) {
       time_window_end: "",
       estimated_duration_min: String(DEFAULT_DURATION.general),
       handyman_id: UNASSIGNED,
+      labor_price: "0.00",
+      materials_cost: "0.00",
+      materials_paid_by: "company",
+      handyman_payout_percent: "",
       internal_notes: "",
     },
   });
@@ -172,6 +207,10 @@ export function TaskForm({ task }: { task?: TaskWithRelations }) {
         ? String(task.estimated_duration_min)
         : "",
       handyman_id: task.handyman_id ?? UNASSIGNED,
+      labor_price: task.labor_price ?? "0.00",
+      materials_cost: task.materials_cost ?? "0.00",
+      materials_paid_by: task.materials_paid_by ?? "company",
+      handyman_payout_percent: task.handyman_payout_percent ?? "",
       internal_notes: task.internal_notes,
     });
   }, [task, reset]);
@@ -203,6 +242,27 @@ export function TaskForm({ task }: { task?: TaskWithRelations }) {
   const conflicts = findTimeConflicts(selectedHandymanTasks, candidateRange, task?.id);
 
   async function submit(values: TaskFormValues, keepEditing: boolean) {
+    const formPayout = values.handyman_payout_percent
+      ? addMoney(values.handyman_payout_percent, "0")
+      : null;
+    const savedPayout = task?.handyman_payout_percent
+      ? addMoney(task.handyman_payout_percent, "0")
+      : null;
+    const historicalFinancialsChanged =
+      task?.status === "done" &&
+      (addMoney(values.labor_price, "0") !== addMoney(task.labor_price, "0") ||
+        addMoney(values.materials_cost, "0") !== addMoney(task.materials_cost, "0") ||
+        values.materials_paid_by !== task.materials_paid_by ||
+        (isAdmin && formPayout !== savedPayout));
+    if (
+      historicalFinancialsChanged &&
+      !window.confirm(
+        "This task is completed. Changing financials will update historical payroll. Continue?",
+      )
+    ) {
+      return;
+    }
+
     const payload = {
       task_number: values.task_number || undefined,
       title: values.title,
@@ -224,6 +284,17 @@ export function TaskForm({ task }: { task?: TaskWithRelations }) {
         !values.handyman_id || values.handyman_id === UNASSIGNED
           ? null
           : values.handyman_id,
+      labor_price: values.labor_price || "0.00",
+      materials_cost: values.materials_cost || "0.00",
+      materials_paid_by: values.materials_paid_by,
+      ...(isAdmin
+        ? {
+            handyman_payout_percent:
+              !values.handyman_id || values.handyman_id === UNASSIGNED
+                ? null
+                : values.handyman_payout_percent || null,
+          }
+        : {}),
       internal_notes: values.internal_notes ?? "",
     };
 
@@ -517,7 +588,19 @@ export function TaskForm({ task }: { task?: TaskWithRelations }) {
               >
                 <Select
                   value={values.handyman_id || UNASSIGNED}
-                  onValueChange={(v) => setValue("handyman_id", v)}
+                  onValueChange={(value) => {
+                    setValue("handyman_id", value, { shouldDirty: true });
+                    if (isAdmin) {
+                      const selectedHandyman = assignmentHandymen.find(
+                        (handyman) => handyman.id === value,
+                      );
+                      setValue(
+                        "handyman_payout_percent",
+                        selectedHandyman?.default_payout_percent ?? "",
+                        { shouldDirty: true, shouldValidate: true },
+                      );
+                    }
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Unassigned" />
@@ -575,6 +658,117 @@ export function TaskForm({ task }: { task?: TaskWithRelations }) {
             </CardBody>
           </Card>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle icon={<DollarSign />}>Financials</CardTitle>
+            <span className="text-[12px] text-ink-muted">
+              Customer pricing and handyman payout basis
+            </span>
+          </CardHeader>
+          <CardBody className="grid gap-4 md:grid-cols-4">
+            <Field
+              label="Labor price"
+              htmlFor="labor_price"
+              error={errors.labor_price?.message}
+            >
+              <div className="relative">
+                <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[13px] text-ink-muted">
+                  $
+                </span>
+                <Input
+                  id="labor_price"
+                  inputMode="decimal"
+                  className="pl-6 tnum"
+                  aria-invalid={!!errors.labor_price}
+                  {...register("labor_price")}
+                />
+              </div>
+            </Field>
+            <Field
+              label="Materials cost"
+              htmlFor="materials_cost"
+              error={errors.materials_cost?.message}
+            >
+              <div className="relative">
+                <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[13px] text-ink-muted">
+                  $
+                </span>
+                <Input
+                  id="materials_cost"
+                  inputMode="decimal"
+                  className="pl-6 tnum"
+                  aria-invalid={!!errors.materials_cost}
+                  {...register("materials_cost")}
+                />
+              </div>
+            </Field>
+            <Field label="Materials paid by">
+              <Select
+                value={values.materials_paid_by}
+                onValueChange={(value) =>
+                  setValue("materials_paid_by", value as MaterialsPaidBy, {
+                    shouldDirty: true,
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="company">Company</SelectItem>
+                  <SelectItem value="handyman">Handyman</SelectItem>
+                  <SelectItem value="customer">Customer</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            <div className="rounded-[4px] border border-line bg-subtle px-3 py-2">
+              <p className="text-[11px] font-medium uppercase tracking-[0.03em] text-ink-muted">
+                Customer total
+              </p>
+              <p className="mt-1 text-[18px] font-semibold tnum text-ink">
+                {formatMoney(addMoney(values.labor_price, values.materials_cost))}
+              </p>
+            </div>
+
+            {isAdmin && (
+              <Field
+                label="Handyman payout %"
+                htmlFor="handyman_payout_percent"
+                error={errors.handyman_payout_percent?.message}
+                hint="Snapshot for this task; percentage applies to labor only."
+                className="md:col-span-2"
+              >
+                <div className="relative max-w-[220px]">
+                  <Input
+                    id="handyman_payout_percent"
+                    inputMode="decimal"
+                    className="pr-7 tnum"
+                    readOnly={!values.handyman_id || values.handyman_id === UNASSIGNED}
+                    aria-disabled={
+                      !values.handyman_id || values.handyman_id === UNASSIGNED
+                    }
+                    aria-invalid={!!errors.handyman_payout_percent}
+                    {...register("handyman_payout_percent")}
+                  />
+                  <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[13px] text-ink-muted">
+                    %
+                  </span>
+                </div>
+              </Field>
+            )}
+
+            {task?.status === "done" && (
+              <div className="flex gap-2 rounded-[4px] border border-[#f0c36d] bg-[#fff8e8] p-3 text-[12px] text-[#7a4b00] md:col-span-2">
+                <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                <p>
+                  This task is completed. Saving changed financials will update
+                  historical payroll and requires confirmation.
+                </p>
+              </div>
+            )}
+          </CardBody>
+        </Card>
       </div>
     </form>
   );
