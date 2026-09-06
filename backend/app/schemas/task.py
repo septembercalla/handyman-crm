@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from app.models.enums import MaterialsPaidBy, TaskCategory, TaskPriority, TaskStatus
 from app.schemas.customer import CustomerOut
 from app.schemas.handyman import HandymanOut
+from app.schemas.review import ReviewFields
 from app.services.financials import (
     customer_total,
     labor_earnings,
@@ -86,7 +87,7 @@ class TaskUpdate(BaseModel):
     internal_notes: str | None = None
 
 
-class TaskOut(TaskBase):
+class TaskOut(TaskBase, ReviewFields):
     """Task with its relations expanded — what GET /tasks and /tasks/{id} return."""
 
     model_config = ConfigDict(from_attributes=True)

@@ -10,7 +10,7 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useStats } from "@/lib/api/hooks";
 import { STATUS_COLOR } from "@/lib/constants";
-import { longDate, todayISO } from "@/lib/format";
+import { OperationalMetrics } from "@/components/leads/operational-metrics";
 
 export default function HomePage() {
   const { data, isLoading } = useStats();
@@ -19,7 +19,7 @@ export default function HomePage() {
     <>
       <PageHeader
         title="Home"
-        meta={<span className="tnum">{longDate(todayISO())}</span>}
+        meta={<span className="tnum">{data ? `${data.business_date} · ${data.timezone}` : "Loading business date…"}</span>}
         actions={
           <Button asChild>
             <Link href="/tasks/new">
@@ -30,6 +30,7 @@ export default function HomePage() {
       />
 
       <div className="flex-1 space-y-4 p-4">
+        <OperationalMetrics />
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
           {isLoading || !data ? (
             Array.from({ length: 5 }).map((_, i) => (
@@ -76,12 +77,12 @@ export default function HomePage() {
           <Card>
             <CardHeader>
               <CardTitle>Today</CardTitle>
-              <Link
-                href={`/tasks?date_from=${todayISO()}&date_to=${todayISO()}`}
+              {data && <Link
+                href={`/tasks?date_from=${data.business_date}&date_to=${data.business_date}`}
                 className="text-[13px] font-medium text-brand hover:underline"
               >
                 View the whole day
-              </Link>
+              </Link>}
             </CardHeader>
             {isLoading || !data ? (
               <TableSkeleton />

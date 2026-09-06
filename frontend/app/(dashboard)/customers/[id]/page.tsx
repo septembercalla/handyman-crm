@@ -14,6 +14,7 @@ import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCustomer, useCustomerTasks } from "@/lib/api/hooks";
 import { cityLine, duration } from "@/lib/format";
+import { LeadLinks } from "@/components/leads/lead-links";
 
 /**
  * Site record: the full work history for an address — the "memory" that saves
@@ -87,6 +88,7 @@ export default function CustomerPage({
         </Card>
 
         <div className="space-y-4">
+          <LeadLinks customerId={id} />
           <Card>
             <CardHeader>
               <CardTitle>Contact &amp; site</CardTitle>

@@ -13,7 +13,10 @@ from app.models.enums import (
 )
 from app.models.handyman import Handyman
 from app.models.handyman_document import HandymanDocument
+from app.models.lead import Lead, LeadActivity
+from app.models.lead_attachment import LeadAttachment
 from app.models.task import Task, TaskStatusHistory
+from app.models.task_number import TaskNumberCounter
 from app.models.user import User
 
 __all__ = [
@@ -24,9 +27,13 @@ __all__ = [
     "HandymanDocumentType",
     "HandymanStatus",
     "MaterialsPaidBy",
+    "Lead",
+    "LeadActivity",
+    "LeadAttachment",
     "STATUS_TRANSITIONS",
     "TERMINAL_STATUSES",
     "Task",
+    "TaskNumberCounter",
     "TaskCategory",
     "TaskPriority",
     "TaskStatus",

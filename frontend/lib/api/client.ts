@@ -90,7 +90,7 @@ function redirectToLogin() {
   window.location.replace("/login");
 }
 
-async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const {
     method = "GET",
     body,
@@ -428,5 +428,35 @@ export const payrollApi = {
 export const dashboardApi = {
   stats(): Promise<DashboardStats> {
     return request<DashboardStats>("/dashboard/stats");
+  },
+};
+
+
+/* ------------------------------------------------------------ lead photos */
+export interface LeadPhoto {
+  id: string;
+  lead_id: string;
+  file_name: string;
+  mime_type: string;
+  size_bytes: number;
+  uploaded_at: string;
+  uploaded_by_id: string | null;
+  uploaded_by_name: string;
+}
+
+export const leadPhotosApi = {
+  list(leadId: string): Promise<LeadPhoto[]> {
+    return request(`/leads/${leadId}/attachments`);
+  },
+  upload(leadId: string, file: File): Promise<LeadPhoto> {
+    const formData = new FormData();
+    formData.set("file", file);
+    return request(`/leads/${leadId}/attachments`, { method: "POST", formData });
+  },
+  remove(leadId: string, photoId: string): Promise<void> {
+    return request(`/leads/${leadId}/attachments/${photoId}`, { method: "DELETE" });
+  },
+  url(leadId: string, photoId: string, download = false): string {
+    return `${API_URL}/leads/${leadId}/attachments/${photoId}/${download ? "download" : "view"}`;
   },
 };

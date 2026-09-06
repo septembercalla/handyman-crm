@@ -19,6 +19,9 @@ import { PriorityBadge } from "@/components/common/priority-badge";
 import { StatusBadge } from "@/components/common/status-badge";
 import { StatusActions } from "@/components/tasks/status-actions";
 import { StatusHistory } from "@/components/tasks/status-history";
+import { ReviewTracking } from "@/components/tasks/review-tracking";
+import { LeadLinks } from "@/components/leads/lead-links";
+import { businessTime, useOperations } from "@/lib/api/operations";
 import { MapView } from "@/components/map/map-view";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +29,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrentUser, useDeleteTask, useTask } from "@/lib/api/hooks";
 import { CATEGORY_LABEL } from "@/lib/constants";
 import {
-  dateTime,
   duration,
   formatMoney,
   formatPercent,
@@ -45,6 +47,8 @@ export default function TaskDetailPage({
   const { data: currentUser } = useCurrentUser();
   const { data: task, isLoading } = useTask(id);
   const remove = useDeleteTask();
+  const { data: ops } = useOperations();
+  const dateTime = (value: string | null) => businessTime(value, ops?.timezone);
 
   if (isLoading || !task) {
     return (
@@ -105,6 +109,8 @@ export default function TaskDetailPage({
 
       <div className="grid flex-1 gap-4 p-4 xl:grid-cols-[2fr_1fr]">
         <div className="space-y-4">
+          <LeadLinks taskId={id} />
+          <ReviewTracking task={task} />
           <Card>
             <CardHeader>
               <CardTitle>{task.title}</CardTitle>

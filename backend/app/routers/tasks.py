@@ -27,6 +27,7 @@ from app.schemas import (
     TaskStatusHistoryOut,
     TaskUpdate,
 )
+from app.services import operations
 from app.services.tasks import (
     assign_task,
     get_task_or_404,
@@ -115,6 +116,9 @@ def list_tasks(
     date_to: date | None = None,
     search: str | None = None,
     unassigned: bool = False,
+    review_pending: bool = False,
+    completed_this_week: bool = False,
+    five_star_this_week: bool = False,
     ordering: str = "-created_at",
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=200)] = 25,
@@ -139,6 +143,17 @@ def list_tasks(
         search=search,
         unassigned=unassigned,
     )
+
+    if review_pending:
+        base = base.where(operations.review_pending_condition())
+    if completed_this_week or five_star_this_week:
+        _, _, start, end = operations.business_period(operations.utcnow())
+        if completed_this_week:
+            base = base.where(Task.status == TaskStatus.done, Task.completed_at >= start,
+                              Task.completed_at < end)
+        if five_star_this_week:
+            base = base.where(Task.review_status == "received", Task.review_rating == 5,
+                              Task.review_received_at >= start, Task.review_received_at < end)
 
     count_stmt = select(func.count()).select_from(base.subquery())
     total = db.execute(count_stmt).scalar_one()
@@ -182,7 +197,7 @@ def create_task(payload: TaskCreate, db: DbSession, user: CurrentUser) -> Task:
         exclude={"task_number", "handyman_id", "handyman_payout_percent"}
     )
     task = Task(**data, created_by=user.id)
-    task.task_number = (payload.task_number or "").strip() or next_task_number(db)
+    task.task_number = next_task_number(db, payload.task_number)
 
     db.add(task)
     db.flush()
@@ -232,6 +247,9 @@ def update_task(
             for key, value in data.items()
             if key == "internal_notes" or key in FINANCIAL_FIELDS
         }
+
+    if "task_number" in data:
+        data["task_number"] = next_task_number(db, data["task_number"], task_id=task.id)
 
     handyman_id = data.pop("handyman_id", "__unset__")
     payout_percent = data.pop("handyman_payout_percent", "__unset__")

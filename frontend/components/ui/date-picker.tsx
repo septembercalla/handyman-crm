@@ -32,6 +32,8 @@ export function DatePicker({
   compact = false,
   ariaLabel,
   className,
+  todayDate,
+  disabled = false,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -40,17 +42,22 @@ export function DatePicker({
   compact?: boolean;
   ariaLabel?: string;
   className?: string;
+  /** Server business date; null means it is still loading. Omit for existing behavior. */
+  todayDate?: string | null;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const selected = fromISO(value);
   const minimum = minDate ? fromISO(minDate) : null;
+  const today = todayDate === undefined ? todayISO() : todayDate;
   const [visibleMonth, setVisibleMonth] = useState(() =>
-    monthStart(selected ?? new Date()),
+    monthStart(selected ?? fromISO(today ?? "") ?? new Date(2000, 0, 1)),
   );
 
   useEffect(() => {
     if (selected) setVisibleMonth(monthStart(selected));
-  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
+    else if (todayDate) setVisibleMonth(monthStart(fromISO(todayDate)!));
+  }, [value, todayDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const days = useMemo(() => {
     const first = monthStart(visibleMonth);
@@ -70,6 +77,7 @@ export function DatePicker({
           type="button"
           variant="outline"
           aria-label={ariaLabel}
+          disabled={disabled}
           className={cn(
             "w-full justify-start px-2.5 font-normal",
             !value && "text-ink-muted",
@@ -127,7 +135,7 @@ export function DatePicker({
             const outsideMonth = day.getMonth() !== visibleMonth.getMonth();
             const disabled = minimum ? day < minimum : false;
             const isSelected = iso === value;
-            const isToday = iso === todayISO();
+            const isToday = iso === today;
             return (
               <button
                 key={iso}
@@ -158,8 +166,10 @@ export function DatePicker({
             type="button"
             size="sm"
             variant="ghost"
+            disabled={!today}
             onClick={() => {
-              onChange(todayISO());
+              if (!today) return;
+              onChange(today);
               setOpen(false);
             }}
           >

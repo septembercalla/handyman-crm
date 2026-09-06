@@ -8,6 +8,7 @@ import {
   ClipboardList,
   Home,
   Landmark,
+  ContactRound,
   UserCog,
   Users,
   Wrench,
@@ -20,6 +21,7 @@ import appIcon from "@/app/icon.png";
 
 const NAV = [
   { href: "/", label: "Home", icon: Home, exact: true },
+  { href: "/leads", label: "Leads", icon: ContactRound },
   { href: "/tasks", label: "Tasks", icon: ClipboardList },
   { href: "/schedule", label: "Schedule", icon: CalendarRange },
   { href: "/handymen", label: "Handymen", icon: Wrench },

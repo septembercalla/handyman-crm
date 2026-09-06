@@ -58,6 +58,7 @@ function invalidateTaskScopes(qc: ReturnType<typeof useQueryClient>) {
     "unassigned",
     "dashboard",
     "payroll",
+    "operations",
   ].forEach(
     (key) => qc.invalidateQueries({ queryKey: [key] }),
   );
@@ -197,7 +198,7 @@ export function useDeleteTask() {
       // deliberately not touching the ["task", id] query: invalidating or
       // removing it makes the still-mounted detail page refetch a row that no
       // longer exists. Its cache entry is stale and gets collected on its own.
-      ["tasks", "handyman", "customer", "schedule", "unassigned", "dashboard"].forEach(
+      ["tasks", "handyman", "customer", "schedule", "unassigned", "dashboard", "operations", "leads", "lead"].forEach(
         (key) => qc.invalidateQueries({ queryKey: [key] }),
       );
     },
@@ -388,5 +389,5 @@ export function usePayroll(weekStart?: string, enabled = true) {
 }
 
 export function useStats() {
-  return useQuery({ queryKey: qk.stats(), queryFn: () => dashboardApi.stats() });
+  return useQuery({ queryKey: qk.stats(), queryFn: () => dashboardApi.stats(), refetchInterval: 60_000 });
 }

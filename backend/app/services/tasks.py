@@ -11,7 +11,7 @@ import uuid
 from datetime import UTC, datetime
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select, update
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -20,6 +20,7 @@ from app.models import (
     Handyman,
     HandymanStatus,
     Task,
+    TaskNumberCounter,
     TaskStatus,
     TaskStatusHistory,
     User,
@@ -29,15 +30,41 @@ from app.services.geocoding import geocode
 TASK_NUMBER_RE = re.compile(r"(\d+)$")
 
 
-def next_task_number(db: Session) -> str:
-    """T-1001, T-1002, … Highest existing number wins, so gaps never collide."""
-    numbers = db.execute(select(Task.task_number)).scalars().all()
-    highest = 1000
-    for value in numbers:
-        match = TASK_NUMBER_RE.search(value or "")
-        if match:
-            highest = max(highest, int(match.group(1)))
-    return f"T-{highest + 1}"
+def next_task_number(
+    db: Session, requested: str | None = None, *, task_id: uuid.UUID | None = None
+) -> str:
+    """Allocate under a DB row lock, held until the caller commits or rolls back.
+
+    Explicit numbers use the same lock and advance the counter when necessary.
+    No commit here: the number and its task belong to one transaction.
+    """
+    requested = (requested or "").strip()
+    counter = TaskNumberCounter
+    match = TASK_NUMBER_RE.search(requested)
+    floor = int(match.group(1)) if match else 0
+    if floor > 9223372036854775806:
+        raise HTTPException(422, "Task number exceeds the supported numeric range")
+    while True:
+        value = db.scalar(
+            update(counter)
+            .where(counter.id == 1)
+            .values(last_value=(
+                case((counter.last_value < floor, floor), else_=counter.last_value)
+                if requested else counter.last_value + 1
+            ))
+            .returning(counter.last_value)
+        )
+        if value is None:
+            raise RuntimeError("Task number counter is not initialized; apply the CRM migration")
+        number = requested or f"T-{value}"
+        existing = select(Task.id).where(Task.task_number == number)
+        if task_id is not None:
+            existing = existing.where(Task.id != task_id)
+        if db.scalar(existing) is None:
+            return number
+        if requested:
+            raise HTTPException(409, "Task number already exists")
+        # Also tolerate numbers inserted outside the application after initialization.
 
 
 def record_status_change(

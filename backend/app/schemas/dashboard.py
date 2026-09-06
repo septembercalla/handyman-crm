@@ -1,4 +1,5 @@
 import uuid
+from datetime import date
 from typing import Literal
 
 from pydantic import BaseModel
@@ -18,6 +19,8 @@ class StatusCounts(BaseModel):
 class DashboardStats(BaseModel):
     """GET /dashboard/stats — what the Home screen renders."""
 
+    business_date: date
+    timezone: str
     counts: StatusCounts
     done_today: int
     unassigned: int

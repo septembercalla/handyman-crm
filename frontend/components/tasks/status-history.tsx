@@ -3,10 +3,11 @@
 import { StatusBadge } from "@/components/common/status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTaskHistory } from "@/lib/api/hooks";
-import { dateTime } from "@/lib/format";
+import { businessTime, useOperations } from "@/lib/api/operations";
 
 export function StatusHistory({ taskId }: { taskId: string }) {
   const { data, isLoading } = useTaskHistory(taskId);
+  const { data: ops } = useOperations();
 
   if (isLoading)
     return (
@@ -33,7 +34,7 @@ export function StatusHistory({ taskId }: { taskId: string }) {
               {h.changed_by_name}
             </span>
             <span className="tnum shrink-0 text-[12px] text-ink-muted">
-              {dateTime(h.changed_at)}
+              {businessTime(h.changed_at, ops?.timezone)}
             </span>
           </li>
         ))}

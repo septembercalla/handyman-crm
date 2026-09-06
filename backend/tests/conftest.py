@@ -9,7 +9,7 @@ from sqlalchemy.pool import StaticPool
 from app.core.deps import get_db
 from app.core.security import hash_password
 from app.main import app
-from app.models import User, UserRole
+from app.models import TaskNumberCounter, User, UserRole
 
 
 @pytest.fixture
@@ -20,6 +20,9 @@ def db() -> Generator[Session, None, None]:
         poolclass=StaticPool,
     )
     User.__table__.create(engine)
+    TaskNumberCounter.__table__.create(engine)
+    with engine.begin() as connection:
+        connection.execute(TaskNumberCounter.__table__.insert().values(id=1, last_value=1000))
     session_factory = sessionmaker(bind=engine, expire_on_commit=False)
     session = session_factory()
     try:

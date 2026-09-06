@@ -131,6 +131,11 @@ export interface Task {
   updated_at: string;
   started_at: string | null;
   completed_at: string | null;
+  review_status: "not_requested" | "requested" | "received" | "no_review" | "skipped";
+  review_requested_at: string | null;
+  review_received_at: string | null;
+  review_rating: number | null;
+  review_platform: "google" | "thumbtack" | "facebook" | "other" | null;
 }
 
 /** Task with its relations expanded — what GET /tasks and /tasks/{id} return */
@@ -157,6 +162,9 @@ export interface Paginated<T> {
 }
 
 export interface TaskListParams {
+  review_pending?: boolean;
+  completed_this_week?: boolean;
+  five_star_this_week?: boolean;
   status?: TaskStatus | "";
   handyman_id?: string;
   category?: TaskCategory | "";
@@ -171,6 +179,8 @@ export interface TaskListParams {
 }
 
 export interface DashboardStats {
+  business_date: string;
+  timezone: string;
   counts: Record<TaskStatus, number>;
   done_today: number;
   unassigned: number;

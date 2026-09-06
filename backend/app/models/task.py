@@ -100,6 +100,13 @@ class Task(Base, TimestampMixin):
     )
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    review_status: Mapped[str] = mapped_column(
+        String(32), default="not_requested", server_default="not_requested", index=True
+    )
+    review_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    review_received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    review_rating: Mapped[int | None] = mapped_column(Integer)
+    review_platform: Mapped[str | None] = mapped_column(String(32))
 
     customer: Mapped[Customer] = relationship(lazy="joined")
     handyman: Mapped[Handyman | None] = relationship(lazy="joined")
