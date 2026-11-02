@@ -40,6 +40,8 @@ class Task(Base, TimestampMixin):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    revision: Mapped[int] = mapped_column(Integer, default=1, server_default="1", nullable=False)
+    __mapper_args__ = {"version_id_col": revision}
     task_number: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
 
     customer_id: Mapped[uuid.UUID] = mapped_column(
@@ -90,9 +92,7 @@ class Task(Base, TimestampMixin):
         server_default=MaterialsPaidBy.company.value,
         nullable=False,
     )
-    handyman_payout_percent: Mapped[Decimal | None] = mapped_column(
-        Numeric(5, 2), nullable=True
-    )
+    handyman_payout_percent: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
     internal_notes: Mapped[str] = mapped_column(Text, default="", nullable=False)
 
     created_by: Mapped[uuid.UUID | None] = mapped_column(

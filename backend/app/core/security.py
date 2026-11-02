@@ -6,7 +6,7 @@ import jwt
 
 from app.config import settings
 
-TokenType = Literal["access", "refresh"]
+TokenType = Literal["access", "refresh", "mobile_access"]
 
 
 def hash_password(password: str) -> str:
@@ -40,9 +40,7 @@ def _create_token(
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
-def create_access_token(
-    subject: str, auth_version: int = 0, remember: bool = True
-) -> str:
+def create_access_token(subject: str, auth_version: int = 0, remember: bool = True) -> str:
     return _create_token(
         subject,
         "access",
@@ -52,9 +50,7 @@ def create_access_token(
     )
 
 
-def create_refresh_token(
-    subject: str, auth_version: int = 0, remember: bool = True
-) -> str:
+def create_refresh_token(subject: str, auth_version: int = 0, remember: bool = True) -> str:
     return _create_token(
         subject,
         "refresh",

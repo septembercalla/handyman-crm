@@ -14,7 +14,7 @@ from app.core.security import (
     hash_password,
     verify_password,
 )
-from app.models import User
+from app.models import User, UserRole
 from app.schemas import (
     ChangePasswordRequest,
     CompleteFirstLoginRequest,
@@ -43,16 +43,10 @@ def _cookie_attrs() -> dict:
     }
 
 
-def _set_auth_cookies(
-    response: Response, access: str, refresh: str, remember: bool = True
-) -> None:
+def _set_auth_cookies(response: Response, access: str, refresh: str, remember: bool = True) -> None:
     common = _cookie_attrs()
-    access_lifetime = (
-        {"max_age": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60} if remember else {}
-    )
-    refresh_lifetime = (
-        {"max_age": settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400} if remember else {}
-    )
+    access_lifetime = {"max_age": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60} if remember else {}
+    refresh_lifetime = {"max_age": settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400} if remember else {}
     response.set_cookie(ACCESS_COOKIE, access, **access_lifetime, **common)
     response.set_cookie(REFRESH_COOKIE, refresh, **refresh_lifetime, **common)
 
@@ -81,6 +75,8 @@ def login(payload: LoginRequest, response: Response, db: DbSession) -> TokenPair
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
         )
+    if user.role not in {UserRole.admin, UserRole.dispatcher}:
+        raise HTTPException(status_code=403, detail="Use the mobile sign-in endpoint")
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is disabled")
 
@@ -110,7 +106,7 @@ def refresh_tokens(
         user = db.get(User, uuid.UUID(claims["sub"]))
     except (KeyError, ValueError):
         user = None
-    if not user or not user.is_active:
+    if not user or not user.is_active or user.role not in {UserRole.admin, UserRole.dispatcher}:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unknown user")
     if claims.get("ver", 0) != user.auth_version:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session revoked")

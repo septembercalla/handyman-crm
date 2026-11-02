@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 
 from fastapi import HTTPException, status
 from sqlalchemy import case, func, select, update
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, lazyload
 
 from app.models import (
     STATUS_TRANSITIONS,
@@ -48,10 +48,13 @@ def next_task_number(
         value = db.scalar(
             update(counter)
             .where(counter.id == 1)
-            .values(last_value=(
-                case((counter.last_value < floor, floor), else_=counter.last_value)
-                if requested else counter.last_value + 1
-            ))
+            .values(
+                last_value=(
+                    case((counter.last_value < floor, floor), else_=counter.last_value)
+                    if requested
+                    else counter.last_value + 1
+                )
+            )
             .returning(counter.last_value)
         )
         if value is None:
@@ -118,10 +121,7 @@ def assign_task(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Handyman not found",
             )
-        if (
-            handyman.status is HandymanStatus.inactive
-            and task.handyman_id != handyman_id
-        ):
+        if handyman.status is HandymanStatus.inactive and task.handyman_id != handyman_id:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Inactive handymen cannot receive new assignments",
@@ -181,7 +181,13 @@ def set_status(db: Session, task: Task, new_status: TaskStatus, user: User | Non
 
 
 def get_task_or_404(db: Session, task_id: uuid.UUID) -> Task:
-    task = db.get(Task, task_id)
+    task = db.scalar(
+        select(Task)
+        .options(lazyload(Task.customer), lazyload(Task.handyman))
+        .where(Task.id == task_id)
+        .with_for_update(of=Task)
+        .execution_options(populate_existing=True)
+    )
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
     return task

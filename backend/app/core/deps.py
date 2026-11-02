@@ -55,6 +55,8 @@ DbSession = Annotated[Session, Depends(get_db)]
 
 
 def require_password_change_complete(user: AuthenticatedUser) -> User:
+    if user.role not in {UserRole.admin, UserRole.dispatcher}:
+        raise HTTPException(status_code=403, detail="Office access required")
     if user.must_change_password:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

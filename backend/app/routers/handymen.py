@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, or_, select
 
 from app.core.deps import CurrentUser, DbSession
-from app.models import Handyman, HandymanDocument, HandymanStatus, Task, UserRole
+from app.models import Handyman, HandymanDocument, HandymanStatus, Task, User, UserRole
 from app.schemas import HandymanCreate, HandymanOut, HandymanUpdate, TaskOut
 from app.services.geocoding import geocode
 from app.services.storage import get_private_storage
@@ -119,12 +119,13 @@ def delete_handyman(
             ),
         )
 
-    documents = list(
-        db.execute(
-            select(HandymanDocument).where(
-                HandymanDocument.handyman_id == handyman_id
-            )
+    if db.scalar(select(User.id).where(User.handyman_id == handyman_id).limit(1)):
+        raise HTTPException(
+            409, "This handyman has a mobile account; deactivate the profile instead"
         )
+
+    documents = list(
+        db.execute(select(HandymanDocument).where(HandymanDocument.handyman_id == handyman_id))
         .scalars()
         .all()
     )

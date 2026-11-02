@@ -3,6 +3,7 @@ import logging
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy.orm.exc import StaleDataError
 
 from app.config import settings
 from app.routers import (
@@ -13,6 +14,7 @@ from app.routers import (
     handymen,
     lead_attachments,
     leads,
+    mobile,
     operations,
     payroll,
     schedule,
@@ -43,6 +45,11 @@ app.add_middleware(
 )
 
 
+@app.exception_handler(StaleDataError)
+async def stale_write_handler(_: Request, exc: StaleDataError) -> JSONResponse:
+    return JSONResponse(status_code=409, content={"detail": "Record changed; refresh and retry"})
+
+
 @app.exception_handler(StorageError)
 async def storage_error_handler(_: Request, exc: StorageError) -> JSONResponse:
     return JSONResponse(status_code=503, content={"detail": str(exc)})
@@ -57,6 +64,7 @@ app.include_router(payroll.router, prefix=API_PREFIX)
 app.include_router(leads.router, prefix=API_PREFIX)
 app.include_router(lead_attachments.router, prefix=API_PREFIX)
 app.include_router(operations.router, prefix=API_PREFIX)
+app.include_router(mobile.router, prefix=API_PREFIX)
 
 
 @app.get("/health", tags=["meta"])

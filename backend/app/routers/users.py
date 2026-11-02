@@ -39,7 +39,13 @@ def _commit_or_email_conflict(db: DbSession) -> None:
 
 @router.get("", response_model=list[UserOut])
 def list_users(db: DbSession, _: AdminUser) -> list[User]:
-    return list(db.scalars(select(User).order_by(User.full_name, User.email)).all())
+    return list(
+        db.scalars(
+            select(User)
+            .where(User.role.in_([UserRole.admin, UserRole.dispatcher]))
+            .order_by(User.full_name, User.email)
+        ).all()
+    )
 
 
 @router.post("", response_model=UserOut, status_code=status.HTTP_201_CREATED)

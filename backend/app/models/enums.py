@@ -4,6 +4,7 @@ from enum import StrEnum
 class UserRole(StrEnum):
     admin = "admin"
     dispatcher = "dispatcher"
+    technician = "technician"
 
 
 class HandymanStatus(StrEnum):

@@ -15,12 +15,14 @@ from app.models.handyman import Handyman
 from app.models.handyman_document import HandymanDocument
 from app.models.lead import Lead, LeadActivity
 from app.models.lead_attachment import LeadAttachment
+from app.models.mobile_session import MobileSession
 from app.models.task import Task, TaskStatusHistory
 from app.models.task_number import TaskNumberCounter
 from app.models.user import User
 
 __all__ = [
     "Base",
+    "MobileSession",
     "Customer",
     "Handyman",
     "HandymanDocument",
