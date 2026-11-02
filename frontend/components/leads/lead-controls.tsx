@@ -14,6 +14,13 @@ import { businessTime, label, PROPERTY_TYPES, useLeadDispatchers, LEAD_SOURCES, 
 import { CATEGORY_LABEL, TASK_CATEGORIES } from "@/lib/constants";
 
 export const selectClass = "h-9 rounded-[4px] border border-line bg-surface px-2 text-[13px] text-ink";
+/**
+ * Row action buttons on the Leads list — slightly shorter and lighter than the
+ * default `sm` button, with an explicit (not just faded) disabled state.
+ */
+const rowActionBase = "h-[30px] rounded-[5px] px-2.5 text-[12px] font-medium disabled:opacity-100";
+export const rowActionSecondaryClass = `${rowActionBase} border-line bg-surface text-ink shadow-[0_1px_0_rgba(27,39,51,0.04)] hover:border-[#c6ccd4] hover:bg-subtle disabled:border-line disabled:bg-subtle disabled:text-ink-muted disabled:shadow-none`;
+export const rowActionPrimaryClass = `${rowActionBase} bg-[#1560cc] text-white shadow-[0_1px_0_rgba(27,39,51,0.10)] hover:bg-[#114fa8] disabled:bg-[#b3c4dc] disabled:text-white disabled:shadow-none`;
 export function FormField({ title, children }: { title: string; children: ReactNode }) {
   return <label className="flex min-w-0 flex-col gap-1 text-[12px] font-medium text-ink-muted">{title}{children}</label>;
 }
@@ -119,7 +126,7 @@ export function LeadActions({ lead }: { lead: Lead }) {
     } catch (error) { errorMessage(error); }
   }
   return <Dialog open={open} onOpenChange={(value) => {setOpen(value); if (value) setNextAction(lead.next_action ?? "");}}>
-    <DialogTrigger asChild><Button variant="outline" size="sm" disabled={closed}>Actions</Button></DialogTrigger>
+    <DialogTrigger asChild><Button variant="outline" size="sm" className={rowActionSecondaryClass} disabled={closed}>Actions</Button></DialogTrigger>
     <DialogContent title={lead.name} description={`Contact, next step and qualification · ${ops?.timezone ?? "Business time"}`}>
       <div className="max-h-[75vh] space-y-4 overflow-y-auto p-4">
         <FormField title="Activity note"><Textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000} /></FormField>
@@ -236,7 +243,7 @@ export function BookLead({ lead }: { lead: Lead }) {
     } catch (error) { errorMessage(error); }
   }
   return <Dialog open={open} onOpenChange={setOpen}>
-    <DialogTrigger asChild><Button size="sm" disabled={lead.stage === "booked" || lead.stage === "lost"}>Book job</Button></DialogTrigger>
+    <DialogTrigger asChild><Button size="sm" className={rowActionPrimaryClass} disabled={lead.stage === "booked" || lead.stage === "lost"}>Book job</Button></DialogTrigger>
     <DialogContent title="Book job" description="Select an existing customer to avoid duplicates. Continue in the standard task editor after booking.">
       <form noValidate onSubmit={book} className="grid max-h-[75vh] gap-3 overflow-y-auto p-4 sm:grid-cols-2">
         <div className="sm:col-span-2"><FormField title="Find an existing customer"><Input value={customerSearch} onChange={(e) => setCustomerSearch(e.target.value)} placeholder="Name, phone, email…" /></FormField></div>

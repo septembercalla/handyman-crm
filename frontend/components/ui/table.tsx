@@ -28,7 +28,7 @@ export function THead({
 }: React.HTMLAttributes<HTMLTableSectionElement>) {
   return (
     <thead
-      className={cn("border-b border-line bg-surface", className)}
+      className={cn("border-b border-line bg-[#fafbf8]", className)}
       {...props}
     />
   );
@@ -41,7 +41,7 @@ export function TH({
   return (
     <th
       className={cn(
-        "h-9 whitespace-nowrap px-3 text-left text-[12px] font-medium text-ink-muted first:pl-4 last:pr-4",
+        "h-11 whitespace-nowrap px-3 text-left text-[12px] font-medium text-ink-muted first:pl-4 last:pr-4",
         className,
       )}
       {...props}
@@ -75,7 +75,7 @@ export function TD({
   return (
     <td
       className={cn(
-        "h-11 px-3 align-middle text-ink first:pl-4 last:pr-4",
+        "h-14 px-3 align-middle text-ink first:pl-4 last:pr-4",
         className,
       )}
       {...props}

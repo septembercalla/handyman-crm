@@ -19,6 +19,7 @@ from app.routers import (
     payroll,
     schedule,
     tasks,
+    trips,
     users,
 )
 from app.services.storage import StorageError
@@ -65,6 +66,7 @@ app.include_router(leads.router, prefix=API_PREFIX)
 app.include_router(lead_attachments.router, prefix=API_PREFIX)
 app.include_router(operations.router, prefix=API_PREFIX)
 app.include_router(mobile.router, prefix=API_PREFIX)
+app.include_router(trips.router, prefix=API_PREFIX)
 
 
 @app.get("/health", tags=["meta"])

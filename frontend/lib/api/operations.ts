@@ -51,10 +51,13 @@ export const leadLocation = (lead: Pick<Lead, "city" | "state" | "zip_code">) =>
 export function useLeadDispatchers() {
   return useQuery({ queryKey: ["lead-dispatchers"], queryFn: () => request<{id: string; full_name: string}[]>("/leads/dispatchers") });
 }
+/** Shared shape for the lead stage pill: compact, one consistent size across rows. */
+export const leadStageBadgeBase =
+  "inline-flex h-[22px] min-w-[74px] items-center justify-center rounded-full border px-2.5 text-[11px] font-semibold leading-none tracking-[0.01em]";
 export const leadStageClass = (stage: Lead["stage"]) => ({
-  new: "border-brand/30 bg-brand/10 text-brand", contacting: "border-line bg-subtle text-ink",
-  qualified: "border-brand/30 bg-brand/10 text-brand", booked: "border-green-600/30 bg-green-50 text-green-700",
-  lost: "border-line bg-subtle text-ink-muted",
+  new: "border-sky-300 bg-sky-100 text-sky-800", contacting: "border-slate-300 bg-slate-100 text-slate-700",
+  qualified: "border-indigo-300 bg-indigo-100 text-indigo-800", booked: "border-emerald-300 bg-emerald-100 text-emerald-800",
+  lost: "border-rose-300 bg-rose-100 text-rose-800",
 })[stage];
 export const followUpClass = (state: Lead["follow_up_state"]) => state === "overdue" ? "text-danger font-semibold" : state === "due_today" ? "text-amber-700 font-semibold" : "text-ink-muted";
 export interface LeadActivity {

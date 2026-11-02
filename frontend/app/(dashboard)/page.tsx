@@ -1,132 +1,201 @@
 "use client";
 
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { ArrowUpRight, Plus, CheckCircle2, Phone, Star } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatTile } from "@/components/common/stat-tile";
 import { MiniTaskTable } from "@/components/tasks/mini-task-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useStats } from "@/lib/api/hooks";
-import { STATUS_COLOR } from "@/lib/constants";
-import { OperationalMetrics } from "@/components/leads/operational-metrics";
+import { useCurrentUser, useStats } from "@/lib/api/hooks";
+import { useOperations } from "@/lib/api/operations";
 
 export default function HomePage() {
-  const { data, isLoading } = useStats();
-
+  const stats = useStats();
+  const operations = useOperations();
+  const { data: user } = useCurrentUser();
+  const data = stats.data;
+  const follow = operations.data?.needs_follow_up;
+  const reviews = operations.data?.reviews_pending;
+  const businessDate = data
+    ? new Intl.DateTimeFormat("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      }).format(new Date(data.business_date + "T12:00:00"))
+    : "Your office and field, in one place.";
   return (
     <>
       <PageHeader
-        title="Home"
-        meta={<span className="tnum">{data ? `${data.business_date} · ${data.timezone}` : "Loading business date…"}</span>}
+        title="Overview"
+        meta={businessDate}
         actions={
           <Button asChild>
             <Link href="/tasks/new">
-              <Plus /> Create Task
+              <Plus /> Create job
             </Link>
           </Button>
         }
       />
-
-      <div className="flex-1 space-y-4 p-4">
-        <OperationalMetrics />
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-          {isLoading || !data ? (
-            Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-[84px]" />
-            ))
+      <div className="workspace-content space-y-6">
+        {stats.isError && (
+          <Card role="alert" className="p-5 text-sm">
+            <p className="font-semibold">Could not refresh your workspace</p>
+            <p className="mt-1 text-ink-muted">{stats.error.message}</p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={() => void stats.refetch()}
+            >
+              Try again
+            </Button>
+          </Card>
+        )}
+        <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+          {!data ? (
+            [1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-[110px]" />)
           ) : (
             <>
               <StatTile
-                label="New"
-                value={data.counts.new}
-                accent={STATUS_COLOR.new}
-                href="/tasks?status=new"
-              />
-              <StatTile
-                label="Assigned"
-                value={data.counts.assigned}
-                accent={STATUS_COLOR.assigned}
-                href="/tasks?status=assigned"
+                label="Jobs today"
+                value={data.today.length}
+                href={`/tasks?date_from=${data.business_date}&date_to=${data.business_date}`}
+                hint="On the calendar"
               />
               <StatTile
                 label="In progress"
                 value={data.counts.in_progress}
-                accent={STATUS_COLOR.in_progress}
                 href="/tasks?status=in_progress"
+                hint="Work underway"
               />
               <StatTile
-                label="Done today"
-                value={data.done_today}
-                accent={STATUS_COLOR.done}
-                href="/tasks?status=done"
-              />
-              <StatTile
-                label="Unassigned"
+                label="Needs assignment"
                 value={data.unassigned}
-                accent={STATUS_COLOR.cancelled}
                 href="/tasks?unassigned=1"
-                hint="need a handyman"
+                hint="Ready for dispatch"
+              />
+              <StatTile
+                label="Completed this week"
+                value={operations.data?.completed_this_week ?? "—"}
+                href="/tasks?completed_this_week=1"
+                hint="Monday – Sunday"
               />
             </>
           )}
         </div>
-
-        <div className="grid gap-4 xl:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Today</CardTitle>
-              {data && <Link
-                href={`/tasks?date_from=${data.business_date}&date_to=${data.business_date}`}
-                className="text-[13px] font-medium text-brand hover:underline"
+        <Card className="flex flex-wrap items-center gap-x-8 gap-y-4 px-5 py-4">
+          <div className="flex items-center gap-2 text-[12px] font-semibold">
+            <CheckCircle2 className="size-4 text-brand" />
+            Office follow-up
+          </div>
+          {operations.isError ? (
+            <button
+              type="button"
+              onClick={() => void operations.refetch()}
+              className="text-xs text-danger"
+            >
+              Could not load · Retry
+            </button>
+          ) : (
+            <>
+              <Link
+                href="/leads?attention=needs_follow_up"
+                className="inline-flex items-center gap-2 text-xs text-ink-muted hover:text-brand"
               >
-                View the whole day
-              </Link>}
+                <Phone className="size-3.5" />
+                <span>
+                  <strong className="font-semibold text-ink">
+                    {follow ?? "—"}
+                  </strong>{" "}
+                  leads to follow up
+                </span>
+                <ArrowUpRight className="size-3" />
+              </Link>
+              <Link
+                href="/tasks?review_pending=1"
+                className="inline-flex items-center gap-2 text-xs text-ink-muted hover:text-brand"
+              >
+                <Star className="size-3.5" />
+                <span>
+                  <strong className="font-semibold text-ink">
+                    {reviews ?? "—"}
+                  </strong>{" "}
+                  reviews pending
+                </span>
+                <ArrowUpRight className="size-3" />
+              </Link>
+            </>
+          )}
+          {user?.role === "admin" && (
+            <Link
+              href="/trips"
+              className="ml-auto inline-flex items-center gap-1.5 text-xs font-semibold text-brand"
+            >
+              Weekly trips <ArrowUpRight className="size-3.5" />
+            </Link>
+          )}
+        </Card>
+        <div className="grid items-start gap-5 xl:grid-cols-[1.35fr_1fr]">
+          <Card className="overflow-hidden">
+            <CardHeader>
+              <CardTitle>Today’s schedule</CardTitle>
+              <Link
+                href="/schedule"
+                className="inline-flex items-center gap-1 text-xs font-medium text-brand"
+              >
+                Open schedule <ArrowUpRight className="size-3.5" />
+              </Link>
             </CardHeader>
-            {isLoading || !data ? (
+            {!data ? (
               <TableSkeleton />
             ) : (
               <MiniTaskTable
                 tasks={data.today}
                 columns={["window", "title_address", "handyman", "status"]}
-                emptyTitle="Nothing scheduled for today"
+                emptyTitle="A little breathing room"
+                emptyDescription="No jobs scheduled for today. Your upcoming work is in Schedule."
               />
             )}
           </Card>
-
-          <Card>
+          <Card className="overflow-hidden">
             <CardHeader>
-              <CardTitle>Needs assignment</CardTitle>
+              <CardTitle>Ready to assign</CardTitle>
               <Link
-                href="/schedule"
-                className="text-[13px] font-medium text-brand hover:underline"
+                href="/tasks?unassigned=1"
+                className="inline-flex items-center gap-1 text-xs font-medium text-brand"
               >
-                Assign
+                View jobs <ArrowUpRight className="size-3.5" />
               </Link>
             </CardHeader>
-            {isLoading || !data ? (
+            {!data ? (
               <TableSkeleton />
             ) : (
               <MiniTaskTable
                 tasks={data.needs_assignment}
-                columns={["number", "title_address", "category", "date", "priority"]}
-                emptyTitle="Everything is assigned"
-                emptyDescription="No task is left without a handyman."
+                columns={["number", "title_address", "date"]}
+                emptyTitle="Everyone knows where to go"
+                emptyDescription="All jobs have a team member assigned."
               />
             )}
           </Card>
         </div>
+        <p className="px-1 text-[11px] text-ink-muted">
+          Appointments and weekly totals follow{" "}
+          {data?.timezone ?? "the business timezone"}. Job changes from the
+          mobile app appear on refresh.
+        </p>
       </div>
     </>
   );
 }
-
 function TableSkeleton() {
   return (
-    <div className="space-y-2 p-4">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <Skeleton key={i} className="h-8" />
+    <div className="space-y-3 p-5">
+      {[1, 2, 3].map((i) => (
+        <Skeleton key={i} className="h-12" />
       ))}
     </div>
   );

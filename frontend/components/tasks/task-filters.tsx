@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, X } from "lucide-react";
+import { Search, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -28,6 +28,7 @@ const ANY = "__any__";
 export function TaskFilters() {
   const { get, set, setMany, clear, searchParams } = useUrlParams();
   const { data: handymen = [] } = useHandymen();
+  const [expanded, setExpanded] = useState(false);
   const [search, setSearch] = useState(get("search"));
 
   // debounce search so the URL is not rewritten on every keystroke
@@ -42,12 +43,19 @@ export function TaskFilters() {
     setSearch(searchParams.get("search") ?? "");
   }, [searchParams]);
 
-  const hasFilters = ["status", "category", "priority", "handyman_id", "search", "date_from", "date_to", "unassigned"].some(
-    (k) => searchParams.get(k),
-  );
+  const hasFilters = [
+    "status",
+    "category",
+    "priority",
+    "handyman_id",
+    "search",
+    "date_from",
+    "date_to",
+    "unassigned",
+  ].some((k) => searchParams.get(k));
 
   return (
-    <div className="flex flex-wrap items-center gap-2 border-b border-line bg-surface px-4 py-2.5">
+    <div className="flex flex-wrap items-center gap-3 border-b border-line bg-surface px-5 py-4">
       <div className="relative min-w-[200px] flex-1 md:max-w-[280px]">
         <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-ink-muted" />
         <Input
@@ -61,59 +69,78 @@ export function TaskFilters() {
       <FilterSelect
         value={get("status")}
         placeholder="Status"
-        options={TASK_STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s] }))}
+        options={TASK_STATUSES.map((s) => ({
+          value: s,
+          label: STATUS_LABEL[s],
+        }))}
         onChange={(v) => setMany({ status: v, unassigned: null })}
       />
       <FilterSelect
-        value={get("category")}
-        placeholder="Category"
-        options={TASK_CATEGORIES.map((c) => ({
-          value: c,
-          label: CATEGORY_LABEL[c],
-        }))}
-        onChange={(v) => set("category", v)}
-      />
-      <FilterSelect
-        value={get("priority")}
-        placeholder="Priority"
-        options={TASK_PRIORITIES.map((p) => ({
-          value: p,
-          label: PRIORITY_LABEL[p],
-        }))}
-        onChange={(v) => set("priority", v)}
-      />
-      <FilterSelect
         value={get("handyman_id")}
-        placeholder="Handyman"
+        placeholder="Team member"
         width="w-[164px]"
         options={handymen.map((h) => ({ value: h.id, label: h.full_name }))}
         onChange={(v) => setMany({ handyman_id: v, unassigned: null })}
       />
 
-      <div className="flex items-center gap-1.5">
-        <DatePicker
-          value={get("date_from")}
-          onChange={(value) => set("date_from", value || null)}
-          placeholder="From date"
-          compact
-          className="w-[136px]"
-          ariaLabel="Date from"
-        />
-        <span className="text-[12px] text-ink-muted">—</span>
-        <DatePicker
-          value={get("date_to")}
-          onChange={(value) => set("date_to", value || null)}
-          placeholder="To date"
-          compact
-          className="w-[136px]"
-          ariaLabel="Date to"
-        />
-      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        aria-expanded={expanded}
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <SlidersHorizontal /> More filters
+      </Button>
 
       {hasFilters && (
         <Button variant="ghost" size="sm" onClick={clear}>
           <X /> Reset
         </Button>
+      )}
+      {(expanded ||
+        get("category") ||
+        get("priority") ||
+        get("date_from") ||
+        get("date_to")) && (
+        <div className="flex w-full flex-wrap items-center gap-2 border-t border-line pt-3">
+          <FilterSelect
+            value={get("category")}
+            placeholder="Category"
+            options={TASK_CATEGORIES.map((c) => ({
+              value: c,
+              label: CATEGORY_LABEL[c],
+            }))}
+            onChange={(v) => set("category", v)}
+          />
+          <FilterSelect
+            value={get("priority")}
+            placeholder="Priority"
+            options={TASK_PRIORITIES.map((p) => ({
+              value: p,
+              label: PRIORITY_LABEL[p],
+            }))}
+            onChange={(v) => set("priority", v)}
+          />
+          <div className="flex items-center gap-1.5">
+            <DatePicker
+              value={get("date_from")}
+              onChange={(value) => set("date_from", value || null)}
+              placeholder="From date"
+              compact
+              className="w-[136px]"
+              ariaLabel="Date from"
+            />
+            <span className="text-[12px] text-ink-muted">—</span>
+            <DatePicker
+              value={get("date_to")}
+              onChange={(value) => set("date_to", value || null)}
+              placeholder="To date"
+              compact
+              className="w-[136px]"
+              ariaLabel="Date to"
+            />
+          </div>{" "}
+        </div>
       )}
     </div>
   );

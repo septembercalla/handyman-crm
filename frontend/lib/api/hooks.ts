@@ -34,7 +34,8 @@ export const qk = {
   taskHistory: (id: string) => ["task", id, "history"] as const,
   handymen: (p?: object) => ["handymen", p ?? {}] as const,
   handyman: (id: string) => ["handyman", id] as const,
-  handymanDay: (id: string, date: string) => ["handyman", id, "day", date] as const,
+  handymanDay: (id: string, date: string) =>
+    ["handyman", id, "day", date] as const,
   handymanTasks: (id: string) => ["handyman", id, "tasks"] as const,
   handymanDocuments: (id: string) => ["handyman", id, "documents"] as const,
   customers: (p?: object) => ["customers", p ?? {}] as const,
@@ -58,10 +59,9 @@ function invalidateTaskScopes(qc: ReturnType<typeof useQueryClient>) {
     "unassigned",
     "dashboard",
     "payroll",
+    "trips",
     "operations",
-  ].forEach(
-    (key) => qc.invalidateQueries({ queryKey: [key] }),
-  );
+  ].forEach((key) => qc.invalidateQueries({ queryKey: [key] }));
 }
 
 /**
@@ -88,8 +88,11 @@ export function useUsers(enabled = true) {
 export function useCreateUser() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: { email: string; full_name: string; password: string }) =>
-      usersApi.create(payload),
+    mutationFn: (payload: {
+      email: string;
+      full_name: string;
+      password: string;
+    }) => usersApi.create(payload),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.users() }),
   });
 }
@@ -134,13 +137,20 @@ export function useTasks(params: TaskListParams, enabled = true) {
   return useQuery({
     queryKey: qk.tasks(params),
     queryFn: () => tasksApi.list(params),
+    refetchInterval: 20_000,
+    refetchOnWindowFocus: true,
     placeholderData: keepPreviousData,
     enabled,
   });
 }
 
 export function useTask(id: string) {
-  return useQuery({ queryKey: qk.task(id), queryFn: () => tasksApi.get(id) });
+  return useQuery({
+    queryKey: qk.task(id),
+    queryFn: () => tasksApi.get(id),
+    refetchInterval: 20_000,
+    refetchOnWindowFocus: true,
+  });
 }
 
 export function useTaskHistory(id: string) {
@@ -198,9 +208,19 @@ export function useDeleteTask() {
       // deliberately not touching the ["task", id] query: invalidating or
       // removing it makes the still-mounted detail page refetch a row that no
       // longer exists. Its cache entry is stale and gets collected on its own.
-      ["tasks", "handyman", "customer", "schedule", "unassigned", "dashboard", "operations", "leads", "lead"].forEach(
-        (key) => qc.invalidateQueries({ queryKey: [key] }),
-      );
+      [
+        "tasks",
+        "handyman",
+        "customer",
+        "schedule",
+        "unassigned",
+        "dashboard",
+        "operations",
+        "leads",
+        "lead",
+        "trips",
+        "payroll",
+      ].forEach((key) => qc.invalidateQueries({ queryKey: [key] }));
     },
   });
 }
@@ -291,17 +311,26 @@ export function useUploadHandymanDocument() {
       notes: string;
     }) => handymenApi.uploadDocument(handymanId, { documentType, file, notes }),
     onSuccess: (document) =>
-      qc.invalidateQueries({ queryKey: qk.handymanDocuments(document.handyman_id) }),
+      qc.invalidateQueries({
+        queryKey: qk.handymanDocuments(document.handyman_id),
+      }),
   });
 }
 
 export function useDeleteHandymanDocument() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ handymanId, documentId }: { handymanId: string; documentId: string }) =>
-      handymenApi.removeDocument(handymanId, documentId),
+    mutationFn: ({
+      handymanId,
+      documentId,
+    }: {
+      handymanId: string;
+      documentId: string;
+    }) => handymenApi.removeDocument(handymanId, documentId),
     onSuccess: (_, variables) =>
-      qc.invalidateQueries({ queryKey: qk.handymanDocuments(variables.handymanId) }),
+      qc.invalidateQueries({
+        queryKey: qk.handymanDocuments(variables.handymanId),
+      }),
   });
 }
 
@@ -362,6 +391,8 @@ export function useSchedule(date: string) {
   return useQuery({
     queryKey: qk.schedule(date),
     queryFn: () => scheduleApi.day(date),
+    refetchInterval: 20_000,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -384,10 +415,16 @@ export function usePayroll(weekStart?: string, enabled = true) {
   return useQuery({
     queryKey: qk.payroll(weekStart),
     queryFn: () => payrollApi.week(weekStart),
+    refetchInterval: 20_000,
+    refetchOnWindowFocus: true,
     enabled,
   });
 }
 
 export function useStats() {
-  return useQuery({ queryKey: qk.stats(), queryFn: () => dashboardApi.stats(), refetchInterval: 60_000 });
+  return useQuery({
+    queryKey: qk.stats(),
+    queryFn: () => dashboardApi.stats(),
+    refetchInterval: 60_000,
+  });
 }

@@ -17,7 +17,7 @@ export function StatTile({
   const body = (
     <div
       className={cn(
-        "relative h-full rounded-[6px] border border-line bg-surface px-4 py-3 transition-colors",
+        "relative h-full rounded-[16px] border border-line bg-surface px-5 py-4 transition-colors",
         href && "hover:border-[#c3cad3] hover:bg-hover",
       )}
     >
@@ -27,7 +27,7 @@ export function StatTile({
           style={{ backgroundColor: accent }}
         />
       )}
-      <p className="text-[12px] font-medium uppercase tracking-[0.03em] text-ink-muted">
+      <p className="text-[12px] font-medium tracking-normal text-ink-muted">
         {label}
       </p>
       <p className="tnum mt-1 text-[26px] font-semibold leading-8 text-ink">

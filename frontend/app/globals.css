@@ -2,38 +2,38 @@
 @import "tw-animate-css";
 
 /* ------------------------------------------------------------------
-   Handyman CRM — design tokens (SPEC §7)
+   NOVAfix workspace — shared visual language with the field app
    Dense, quiet, utilitarian. No gradients, no halo shadows.
 ------------------------------------------------------------------- */
 :root {
   /* palette from the spec */
-  --bg-app: #f4f5f7;
+  --bg-app: #f7f8f4;
   --bg-surface: #ffffff;
-  --bg-sidebar: #16202d;
-  --line: #dcdfe4;
-  --ink: #1b2733;
-  --ink-muted: #6b7785;
-  --accent: #1a6fe0;
-  --danger: #d64545;
+  --bg-sidebar: #ffffff;
+  --line: #e5e9e1;
+  --ink: #172c27;
+  --ink-muted: #6a7770;
+  --accent: #285d48;
+  --danger: #a8473d;
 
   /* derived */
-  --bg-subtle: #eef0f3;
-  --bg-hover: #f7f8fa;
-  --sidebar-item-active: #26333f;
-  --sidebar-ink: #9aa7b4;
+  --bg-subtle: #edf0e9;
+  --bg-hover: #f6f8f2;
+  --sidebar-item-active: #edf3e8;
+  --sidebar-ink: #6a7770;
 
   /* task statuses */
-  --status-new: #6b7785;
-  --status-assigned: #1a6fe0;
-  --status-in_progress: #c77700;
-  --status-done: #1f8a4c;
-  --status-cancelled: #d64545;
+  --status-new: #6a7770;
+  --status-assigned: #285d48;
+  --status-in_progress: #966521;
+  --status-done: #285d48;
+  --status-cancelled: #a8473d;
 
   /* priorities */
-  --priority-low: #6b7785;
+  --priority-low: #6a7770;
   --priority-normal: #4b5a68;
-  --priority-high: #c77700;
-  --priority-urgent: #d64545;
+  --priority-high: #966521;
+  --priority-urgent: #a8473d;
 
   /* shadcn/ui compatibility */
   --background: var(--bg-app);
@@ -55,7 +55,7 @@
   --border: var(--line);
   --input: var(--line);
   --ring: var(--accent);
-  --radius: 4px;
+  --radius: 10px;
 }
 
 @theme inline {
@@ -90,19 +90,21 @@
   --color-ink-muted: var(--ink-muted);
   --color-brand: var(--accent);
   --color-danger: var(--danger);
+  --color-pale: #edf3e8;
   --color-subtle: var(--bg-subtle);
   --color-hover: var(--bg-hover);
 
-  --radius-sm: 3px;
-  --radius-md: 4px;
-  --radius-lg: 6px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
 
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
 
   /* fixed interface metrics (SPEC §7) */
-  --spacing-sidebar: 72px;
-  --spacing-header: 52px;
+  --spacing-sidebar: 224px;
+  --spacing-header: 96px;
   --spacing-control: 36px;
   --spacing-row: 44px;
 }
@@ -126,7 +128,15 @@ body {
 }
 
 /* focus — one style across the whole UI */
-:where(button, a, input, select, textarea, [role="button"], [tabindex]):focus-visible {
+:where(
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  [role="button"],
+  [tabindex]
+):focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
   border-radius: 3px;
@@ -152,4 +162,110 @@ body {
 /* tabular figures for numbers in tables */
 .tnum {
   font-variant-numeric: tabular-nums;
+}
+
+/* Workspace structure. Collapses to an icon rail on smaller screens. */
+.workspace-nav {
+  width: 224px;
+}
+.workspace-main {
+  margin-left: 224px;
+}
+.workspace-content {
+  padding: 28px 32px 40px;
+  min-width: 0;
+}
+.workspace-main > .flex-1.p-4 {
+  padding: 24px 32px 40px;
+}
+.trip-table,
+.team-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.trip-table thead th,
+.team-table thead th {
+  background: #fafbf8;
+  padding: 13px 20px;
+  color: var(--ink-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--line);
+}
+.trip-table td,
+.trip-table tbody th {
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.trip-table tbody tr:last-child > *,
+.team-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.trip-table .day-cell {
+  background: #fafbf8;
+  border-right: 1px solid var(--line);
+  min-width: 125px;
+}
+.trip-table tbody tr:hover td,
+.team-table tbody tr:hover td {
+  background: #fbfcf9;
+}
+.trip-table tfoot {
+  background: #edf3e8;
+}
+.trip-table tfoot th,
+.trip-table tfoot td {
+  padding: 18px 20px;
+  border-top: 1px solid var(--line);
+  font-weight: 600;
+}
+.team-table td {
+  padding: 20px;
+  border-bottom: 1px solid var(--line);
+}
+@media (min-width: 1600px) {
+  .workspace-content {
+    padding-left: 40px;
+    padding-right: 40px;
+  }
+}
+@media (max-width: 1023px) {
+  .workspace-nav {
+    width: 72px;
+  }
+  .workspace-main {
+    margin-left: 72px;
+  }
+  .nav-label {
+    display: none;
+  }
+  .workspace-content,
+  .workspace-main > .flex-1.p-4 {
+    padding: 24px;
+  }
+}
+@media (max-width: 639px) {
+  .workspace-nav {
+    width: 60px;
+  }
+  .workspace-main {
+    margin-left: 60px;
+  }
+  .workspace-content,
+  .workspace-main > .flex-1.p-4 {
+    padding: 18px 14px;
+  }
+}
+@media print {
+  .workspace-nav {
+    display: none;
+  }
+  .workspace-main {
+    margin-left: 0;
+  }
+  .workspace-content {
+    padding: 0;
+  }
 }

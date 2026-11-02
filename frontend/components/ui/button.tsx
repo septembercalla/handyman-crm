@@ -6,13 +6,12 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-[4px] text-[13px] font-medium transition-colors disabled:pointer-events-none disabled:opacity-45 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:size-4",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[10px] text-[13px] font-medium transition-colors disabled:pointer-events-none disabled:opacity-45 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:size-4",
   {
     variants: {
       variant: {
-        default: "bg-brand text-white hover:bg-[#155cbc]",
-        outline:
-          "border border-line bg-surface text-ink hover:bg-hover",
+        default: "bg-brand text-white hover:bg-[#1e4837]",
+        outline: "border border-line bg-surface text-ink hover:bg-hover",
         ghost: "text-ink hover:bg-subtle",
         danger: "bg-danger text-white hover:bg-[#bd3a3a]",
         dangerOutline:
@@ -20,8 +19,8 @@ const buttonVariants = cva(
         link: "text-brand underline-offset-2 hover:underline p-0 h-auto",
       },
       size: {
-        default: "h-9 px-3",
-        sm: "h-8 px-2.5 text-[12px]",
+        default: "h-10 px-4",
+        sm: "h-9 px-3 text-[12px]",
         lg: "h-10 px-4",
         icon: "h-9 w-9",
         iconSm: "h-8 w-8",
@@ -32,7 +31,8 @@ const buttonVariants = cva(
 );
 
 export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+  extends
+    React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean;
 }

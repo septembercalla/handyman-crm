@@ -12,7 +12,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { useStats } from "@/lib/api/hooks";
 import { Card } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
-import { businessTime, label, LEAD_SOURCES, LEAD_STAGES, CONTACT_OUTCOMES, NEXT_ACTIONS, leadLocation, leadStageClass, followUpClass, useLeads, useOperations } from "@/lib/api/operations";
+import { businessTime, label, LEAD_SOURCES, LEAD_STAGES, CONTACT_OUTCOMES, NEXT_ACTIONS, leadLocation, leadStageBadgeBase, leadStageClass, followUpClass, useLeads, useOperations } from "@/lib/api/operations";
 
 function LeadsInner() {
   const sp = useSearchParams();
@@ -47,16 +47,16 @@ function LeadsInner() {
         {sp.get("booked_this_week") && <p className="bg-subtle px-3 py-2 text-xs">Showing leads booked this business week</p>}
         {error ? <div role="alert" className="p-4 text-sm">{error.message} <Button size="sm" variant="outline" onClick={() => refetch()}>Retry</Button></div> : isLoading ? <p className="p-4 text-sm">Loading leads…</p> : !data?.items.length ? <p className="p-8 text-center text-sm text-ink-muted">No leads match these filters.</p> :
           <Table><THead><TR>{["Customer", "Job", "Location", "Received", "Dispatcher", "Stage", "Last Contact", "Contact Result", "Next Action", "Follow-up"].map((h) => <TH key={h}>{h}</TH>)}</TR></THead>
-            <TBody>{data.items.map((lead) => <TR key={lead.id}>
-              <TD><Link href={`/leads/${lead.id}`} className="font-semibold text-brand hover:underline">{lead.name}</Link>
+            <TBody>{data.items.map((lead) => <TR key={lead.id} className="[&>td]:py-2.5">
+              <TD className="pr-4 align-middle"><Link href={`/leads/${lead.id}`} className="font-semibold text-brand hover:underline">{lead.name}</Link>
                 <p className="text-xs text-ink-muted">{lead.phone || lead.source_lead_id || "Source inquiry"} · {label(lead.source)}</p>
-                <div className="mt-2 flex gap-1"><LeadActions lead={lead} /><BookLead lead={lead} /></div>
+                <div className="mt-1.5 flex items-center gap-2"><LeadActions lead={lead} /><BookLead lead={lead} /></div>
               </TD>
               <TD><p className="max-w-44 whitespace-normal">{lead.job_summary || lead.service_requested || "—"}</p><p className="text-xs text-ink-muted">{lead.service_requested}</p></TD><TD>{leadLocation(lead)}</TD>
               <TD className="text-xs">{businessTime(lead.received_at, ops?.timezone)}</TD>
               <TD><p className="max-w-28 whitespace-normal text-xs">{lead.assigned_dispatcher_name || "Unassigned"}</p></TD>
-              <TD><span className={`rounded border px-2 py-1 text-xs ${leadStageClass(lead.stage)}`}>{label(lead.stage)}</span>
-                {lead.converted_task_id && <Link href={`/tasks/${lead.converted_task_id}`} className="mt-2 block text-xs text-brand">Open job →</Link>}
+              <TD className="align-middle"><span className={`${leadStageBadgeBase} ${leadStageClass(lead.stage)}`}>{label(lead.stage)}</span>
+                {lead.converted_task_id && <Link href={`/tasks/${lead.converted_task_id}`} className="mt-1.5 block text-xs text-brand hover:underline">Open job →</Link>}
               </TD>
               <TD className="text-xs">{businessTime(lead.last_contacted_at, ops?.timezone)}<p className="text-ink-muted">{lead.contact_attempts} attempts{lead.last_contact_method ? ` · ${label(lead.last_contact_method)}` : ""}</p></TD>
               <TD>{lead.latest_contact_outcome ? label(lead.latest_contact_outcome) : "—"}</TD><TD>{lead.next_action ? label(lead.next_action) : "—"}</TD>

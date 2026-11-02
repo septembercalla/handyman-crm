@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import {
@@ -10,13 +11,11 @@ import {
 } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 import { EmptyState } from "@/components/common/empty-state";
-import { PriorityBadge } from "@/components/common/priority-badge";
 import { StatusBadge } from "@/components/common/status-badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
-import { CATEGORY_LABEL } from "@/lib/constants";
-import { fullAddress, shortDate, timeWindow } from "@/lib/format";
+import { fullAddress, formatMoney, shortDate, timeWindow } from "@/lib/format";
 import type { Paginated, TaskWithRelations } from "@/lib/types";
 import { useUrlParams } from "@/hooks/use-url-params";
 import { cn } from "@/lib/utils";
@@ -26,13 +25,14 @@ const col = createColumnHelper<TaskWithRelations>();
 /** column id → API ordering field (ordering=field / -field) */
 const WIDTH: Record<string, string> = {
   task_number: "w-[86px]",
-  customer: "w-[150px]",
-  title: "w-[24%]",
+  customer: "w-[26%]",
+  title: "w-[25%]",
   category: "w-[104px]",
   address: "w-[22%]",
   scheduled_date: "w-[132px]",
   handyman: "w-[152px]",
-  status: "w-[118px]",
+  status: "w-[125px]",
+  value: "w-[112px]",
   priority: "w-[92px]",
 };
 
@@ -65,38 +65,35 @@ export function TasksTable({
 
   const columns = useMemo(
     () => [
-      col.accessor("task_number", {
-        id: "task_number",
-        header: "Task #",
+      col.accessor("title", {
+        id: "title",
+        header: "Job / work",
         cell: (c) => (
-          <span className="tnum font-medium text-brand">{c.getValue()}</span>
+          <Link
+            href={`/tasks/${c.row.original.id}`}
+            className="block py-3 hover:text-brand"
+          >
+            <span className="mb-1 block text-[10px] font-medium tracking-wide text-ink-muted">
+              {c.row.original.task_number}
+            </span>
+            <span className="line-clamp-2 text-[13px] font-medium leading-5">
+              {c.getValue()}
+            </span>
+          </Link>
         ),
       }),
       col.accessor((r) => r.customer?.full_name ?? "—", {
         id: "customer",
-        header: "Customer",
-        cell: (c) => <span className="line-clamp-1">{c.getValue()}</span>,
-      }),
-      col.accessor("title", {
-        id: "title",
-        header: "Title",
+        header: "Customer / address",
         cell: (c) => (
-          <span className="line-clamp-1 font-medium">{c.getValue()}</span>
-        ),
-      }),
-      col.accessor("category", {
-        id: "category",
-        header: "Category",
-        cell: (c) => (
-          <span className="text-ink-muted">{CATEGORY_LABEL[c.getValue()]}</span>
-        ),
-      }),
-      col.accessor((r) => fullAddress(r), {
-        id: "address",
-        header: "Address",
-        enableSorting: false,
-        cell: (c) => (
-          <span className="line-clamp-1 text-ink-muted">{c.getValue()}</span>
+          <div className="py-3">
+            <span className="block text-[12px] font-medium">
+              {c.getValue()}
+            </span>
+            <span className="mt-1 line-clamp-2 text-[11px] leading-5 text-ink-muted">
+              {fullAddress(c.row.original)}
+            </span>
+          </div>
         ),
       }),
       col.accessor("scheduled_date", {
@@ -137,10 +134,15 @@ export function TasksTable({
         header: "Status",
         cell: (c) => <StatusBadge status={c.getValue()} />,
       }),
-      col.accessor("priority", {
-        id: "priority",
-        header: "Priority",
-        cell: (c) => <PriorityBadge priority={c.getValue()} />,
+      col.accessor("customer_total", {
+        id: "value",
+        header: "Job value",
+        enableSorting: false,
+        cell: (c) => (
+          <span className="block text-right text-[12px] font-medium tabular-nums">
+            {formatMoney(c.getValue())}
+          </span>
+        ),
       }),
     ],
     [],
@@ -190,15 +192,21 @@ export function TasksTable({
   return (
     <>
       <div className="scroll-thin overflow-x-auto">
-        <Table fixed className="min-w-[1180px]">
+        <Table fixed className="min-w-[900px]">
           <THead>
             {table.getHeaderGroups().map((hg) => (
               <TR key={hg.id} className="hover:bg-transparent">
                 {hg.headers.map((h) => {
                   const field = SORT_FIELD[h.column.id];
-                  const sortable = Boolean(field) && h.column.columnDef.enableSorting !== false;
+                  const sortable =
+                    Boolean(field) &&
+                    h.column.columnDef.enableSorting !== false;
                   const dir =
-                    ordering === field ? "asc" : ordering === `-${field}` ? "desc" : null;
+                    ordering === field
+                      ? "asc"
+                      : ordering === `-${field}`
+                        ? "desc"
+                        : null;
                   return (
                     <TH key={h.id} className={WIDTH[h.column.id]}>
                       {sortable ? (
@@ -210,7 +218,10 @@ export function TasksTable({
                             dir && "text-ink",
                           )}
                         >
-                          {flexRender(h.column.columnDef.header, h.getContext())}
+                          {flexRender(
+                            h.column.columnDef.header,
+                            h.getContext(),
+                          )}
                           {dir === "asc" ? (
                             <ArrowUp className="size-3" />
                           ) : dir === "desc" ? (

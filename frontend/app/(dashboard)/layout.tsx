@@ -25,7 +25,9 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen bg-app">
       <Sidebar />
-      <div className="ml-[72px] flex min-h-screen flex-col">{children}</div>
+      <div className="workspace-main flex min-h-screen min-w-0 flex-col">
+        {children}
+      </div>
     </div>
   );
 }

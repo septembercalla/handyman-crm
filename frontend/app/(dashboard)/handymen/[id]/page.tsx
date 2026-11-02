@@ -53,7 +53,10 @@ export default function HandymanPage({
 
   const { data: currentUser } = useCurrentUser();
   const { data: handyman, isLoading } = useHandyman(id);
-  const { data: tasks = [], isLoading: tasksLoading } = useHandymanDay(id, date);
+  const { data: tasks = [], isLoading: tasksLoading } = useHandymanDay(
+    id,
+    date,
+  );
 
   if (isLoading || !handyman) {
     return (
@@ -107,13 +110,24 @@ export default function HandymanPage({
         }
         actions={
           <div className="flex items-center gap-1.5">
+            {currentUser?.role === "admin" && (
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/trips?handyman_id=${handyman.id}`}>
+                  Weekly trip
+                </Link>
+              </Button>
+            )}
             <HandymanDialog handyman={handyman}>
               <Button variant="outline" size="sm">
                 <Pencil /> Edit
               </Button>
             </HandymanDialog>
             <HandymanDeleteDialog handyman={handyman}>
-              <Button variant="outline" size="iconSm" aria-label="Delete handyman">
+              <Button
+                variant="outline"
+                size="iconSm"
+                aria-label="Delete handyman"
+              >
                 <Trash2 />
               </Button>
             </HandymanDeleteDialog>
@@ -206,7 +220,10 @@ export default function HandymanPage({
                           {timeWindow(t.time_window_start, t.time_window_end)}
                         </TD>
                         <TD>
-                          <Link href={`/tasks/${t.id}`} className="hover:underline">
+                          <Link
+                            href={`/tasks/${t.id}`}
+                            className="hover:underline"
+                          >
                             {fullAddress(t)}
                           </Link>
                         </TD>
@@ -332,7 +349,9 @@ export default function HandymanPage({
                       {[
                         handyman.street_address,
                         handyman.city,
-                        [handyman.state, handyman.zip].filter(Boolean).join(" "),
+                        [handyman.state, handyman.zip]
+                          .filter(Boolean)
+                          .join(" "),
                       ]
                         .filter(Boolean)
                         .join(", ")}
@@ -344,7 +363,9 @@ export default function HandymanPage({
             </CardBody>
           </Card>
 
-          {currentUser?.role === "admin" && <HandymanDocuments handymanId={id} />}
+          {currentUser?.role === "admin" && (
+            <HandymanDocuments handymanId={id} />
+          )}
         </div>
       </div>
     </>

@@ -27,7 +27,7 @@ export function PageHeader({
   return (
     <header
       className={cn(
-        "sticky top-0 z-20 flex h-[52px] shrink-0 items-center gap-3 border-b border-line bg-surface px-4",
+        "flex min-h-[100px] shrink-0 flex-wrap items-center justify-between gap-4 border-b border-line bg-app px-8 py-6 max-sm:px-4",
         className,
       )}
     >
@@ -44,19 +44,21 @@ export function PageHeader({
         </button>
       )}
 
-      <div className="flex min-w-0 items-center gap-3">
-        <h1 className="truncate text-[17px] font-semibold leading-6 text-ink">
+      <div className="flex min-w-0 flex-col items-start gap-1.5">
+        <h1 className="text-[27px] font-semibold leading-8 tracking-[-0.8px] text-ink">
           {title}
         </h1>
         {meta && (
-          <div className="flex shrink-0 items-center gap-2 text-[13px] text-ink-muted">
+          <div className="flex flex-wrap items-center gap-2 text-[12px] leading-5 text-ink-muted">
             {meta}
           </div>
         )}
       </div>
 
       {actions && (
-        <div className="ml-auto flex shrink-0 items-center gap-2">{actions}</div>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {actions}
+        </div>
       )}
     </header>
   );

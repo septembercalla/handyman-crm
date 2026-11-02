@@ -13,11 +13,18 @@ export function StatusBadge({
   return (
     <span
       className={cn(
-        "inline-flex h-[18px] items-center whitespace-nowrap rounded-[3px] px-1.5 text-[11px] font-semibold uppercase leading-none tracking-[0.02em] text-white",
+        "inline-flex min-h-[23px] items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[10px] font-medium leading-none",
+        {
+          new: "border-line bg-subtle text-ink-muted",
+          assigned: "border-[#dce7dd] bg-[#edf3e8] text-brand",
+          in_progress: "border-[#eadbbf] bg-[#fbf1dd] text-[#966521]",
+          done: "border-[#dce7dd] bg-[#edf3e8] text-brand",
+          cancelled: "border-[#eadbd7] bg-[#fbefec] text-[#a8473d]",
+        }[status],
         className,
       )}
-      style={{ backgroundColor: STATUS_COLOR[status] }}
     >
+      <span aria-hidden="true" className="size-1 rounded-full bg-current" />
       {STATUS_LABEL[status]}
     </span>
   );

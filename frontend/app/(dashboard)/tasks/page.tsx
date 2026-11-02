@@ -38,14 +38,14 @@ function TasksPageInner() {
   return (
     <>
       <PageHeader
-        title="Tasks"
+        title="Jobs"
         meta={
           data ? <span className="tnum">{data.total} total</span> : undefined
         }
         actions={
           <Button asChild>
             <Link href="/tasks/new">
-              <Plus /> Create Task
+              <Plus /> Create job
             </Link>
           </Button>
         }
@@ -54,10 +54,19 @@ function TasksPageInner() {
       <div className="flex-1 p-4">
         <Card className="overflow-hidden">
           <TaskFilters />
-          {(params.review_pending || params.completed_this_week || params.five_star_this_week) && <div className="border-b border-line px-4 py-2 text-xs text-ink-muted">
-            {params.review_pending && "Reviews pending · "}{params.completed_this_week && "Completed this business week · "}{params.five_star_this_week && "5-star reviews received this business week · "}
-            <Link href="/tasks" className="text-brand underline">Clear operational filter</Link>
-          </div>}
+          {(params.review_pending ||
+            params.completed_this_week ||
+            params.five_star_this_week) && (
+            <div className="border-b border-line px-4 py-2 text-xs text-ink-muted">
+              {params.review_pending && "Reviews pending · "}
+              {params.completed_this_week && "Completed this business week · "}
+              {params.five_star_this_week &&
+                "5-star reviews received this business week · "}
+              <Link href="/tasks" className="text-brand underline">
+                Clear operational filter
+              </Link>
+            </div>
+          )}
           <TasksTable
             data={data}
             isLoading={isLoading}
