@@ -101,8 +101,15 @@ export function MarkLost({ lead }: { lead: Lead }) {
   </Dialog>;
 }
 
-export function LeadActions({ lead }: { lead: Lead }) {
-  const [open, setOpen] = useState(false);
+type LeadDialogProps = { lead: Lead; controlledOpen?: boolean; onOpenChange?: (open: boolean) => void; hideTrigger?: boolean };
+function useLeadDialog(controlledOpen: boolean | undefined, onOpenChange: ((open: boolean) => void) | undefined) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const setOpen = (value: boolean) => { setInternalOpen(value); onOpenChange?.(value); };
+  return [controlledOpen ?? internalOpen, setOpen] as const;
+}
+
+export function LeadActions({ lead, controlledOpen, onOpenChange, hideTrigger = false }: LeadDialogProps) {
+  const [open, setOpen] = useLeadDialog(controlledOpen, onOpenChange);
   const [note, setNote] = useState("");
   const [method, setMethod] = useState<string>("call");
   const [nextAction, setNextAction] = useState<string>(lead.next_action ?? "");
@@ -126,7 +133,7 @@ export function LeadActions({ lead }: { lead: Lead }) {
     } catch (error) { errorMessage(error); }
   }
   return <Dialog open={open} onOpenChange={(value) => {setOpen(value); if (value) setNextAction(lead.next_action ?? "");}}>
-    <DialogTrigger asChild><Button variant="outline" size="sm" className={rowActionSecondaryClass} disabled={closed}>Actions</Button></DialogTrigger>
+    {!hideTrigger && <DialogTrigger asChild><Button variant="outline" size="sm" className={rowActionSecondaryClass} disabled={closed}>Actions</Button></DialogTrigger>}
     <DialogContent title={lead.name} description={`Contact, next step and qualification · ${ops?.timezone ?? "Business time"}`}>
       <div className="max-h-[75vh] space-y-4 overflow-y-auto p-4">
         <FormField title="Activity note"><Textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000} /></FormField>
@@ -197,8 +204,8 @@ export function LeadQuote({ lead }: { lead: Lead }) {
   </form>;
 }
 
-export function BookLead({ lead }: { lead: Lead }) {
-  const [open, setOpen] = useState(false);
+export function BookLead({ lead, controlledOpen, onOpenChange, hideTrigger = false }: LeadDialogProps) {
+  const [open, setOpen] = useLeadDialog(controlledOpen, onOpenChange);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const fieldError = (key: string) => errors[key] ? <span id={`book-${key}-error`} role="alert" className="text-xs text-danger">{errors[key]}</span> : null;
   const [scheduledDate, setScheduledDate] = useState("");
@@ -243,7 +250,7 @@ export function BookLead({ lead }: { lead: Lead }) {
     } catch (error) { errorMessage(error); }
   }
   return <Dialog open={open} onOpenChange={setOpen}>
-    <DialogTrigger asChild><Button size="sm" className={rowActionPrimaryClass} disabled={lead.stage === "booked" || lead.stage === "lost"}>Book job</Button></DialogTrigger>
+    {!hideTrigger && <DialogTrigger asChild><Button size="sm" className={rowActionPrimaryClass} disabled={lead.stage === "booked" || lead.stage === "lost"}>Book job</Button></DialogTrigger>}
     <DialogContent title="Book job" description="Select an existing customer to avoid duplicates. Continue in the standard task editor after booking.">
       <form noValidate onSubmit={book} className="grid max-h-[75vh] gap-3 overflow-y-auto p-4 sm:grid-cols-2">
         <div className="sm:col-span-2"><FormField title="Find an existing customer"><Input value={customerSearch} onChange={(e) => setCustomerSearch(e.target.value)} placeholder="Name, phone, email…" /></FormField></div>
