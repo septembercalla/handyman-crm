@@ -36,6 +36,8 @@ type Totals = {
   scheduled_jobs: number;
   payout_not_set: number;
   job_value: string;
+  labor_total?: string;
+  materials_total?: string;
   labor_earnings: string;
   materials_reimbursement: string;
   total_payout: string;
@@ -392,7 +394,7 @@ export function WeeklyTrip() {
                     </Link>
                   </div>
                 </div>
-                <Card className="grid grid-cols-2 gap-y-6 p-6 md:grid-cols-4">
+                <Card className="grid grid-cols-2 gap-y-6 p-6 md:grid-cols-3">
                   <Metric
                     label="Completed jobs"
                     value={String(trip.completed_jobs)}
@@ -403,6 +405,8 @@ export function WeeklyTrip() {
                     value={formatMoney(trip.job_value)}
                     note="Completed work · incl. materials"
                   />
+                  <Metric label="Labor total" value={trip.labor_total === undefined ? "—" : formatMoney(trip.labor_total)} note="Customer price for work" />
+                  <Metric label="Materials" value={trip.materials_total === undefined ? "—" : formatMoney(trip.materials_total)} note="Total materials on completed jobs" />
                   <Metric
                     label="Labor earnings"
                     value={formatMoney(trip.labor_earnings)}

@@ -8,6 +8,7 @@ import hashlib
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from typing import Annotated
 
 import jwt
@@ -29,6 +30,7 @@ from app.models import (
     User,
     UserRole,
 )
+from app.models.enums import MaterialsPaidBy
 from app.models.mobile_session import MobileSession
 from app.routers import tasks as office_tasks
 from app.schemas.auth import LoginRequest
@@ -129,7 +131,10 @@ def issue(user: User, session: MobileSession, db) -> dict:
 @router.get("/capabilities")
 def capabilities():
     # Public, data-free version handshake; no database query needed.
-    return {"version": 1, "features": ["tasks", "assignment", "status", "technician_accounts"]}
+    return {
+        "version": 1,
+        "features": ["tasks", "assignment", "status", "technician_accounts", "materials", "costs"],
+    }
 
 
 @router.post("/auth/login")
@@ -221,6 +226,7 @@ def task_out(task: Task, user: User) -> dict:
         "completed_at": task.completed_at,
         "labor_price": str(task.labor_price),
         "materials_cost": str(task.materials_cost),
+        "materials_paid_by": task.materials_paid_by.value,
         "labor_earnings": str(share) if share is not None else None,
         "service_address": ", ".join(
             v for v in [task.street_address, task.city, task.state, task.zip] if v
@@ -276,6 +282,64 @@ def change_status(task_id: uuid.UUID, payload: StatusInput, principal: Principal
     if payload.status.value not in task_out(task, user)["allowed_statuses"]:
         raise HTTPException(409, "Transition not permitted")
     set_status(db, task, payload.status, user)
+    db.commit()
+    db.refresh(task)
+    return task_out(task, user)
+
+
+class MaterialsInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    materials_cost: Decimal = Field(ge=0, le=1000000, max_digits=10, decimal_places=2)
+    materials_paid_by: MaterialsPaidBy
+    expected_revision: int = Field(ge=1)
+
+
+@router.post("/tasks/{task_id}/materials")
+def record_materials(
+    task_id: uuid.UUID, payload: MaterialsInput, principal: Principal, db: DbSession
+):
+    user = principal[0]
+    task = authorized_task(db, task_id, user)
+    if user.role != UserRole.technician:
+        raise HTTPException(403, "Technician action required")
+    if task.revision != payload.expected_revision:
+        raise HTTPException(409, "Task changed; refresh and retry")
+    if task.status not in {TaskStatus.assigned, TaskStatus.in_progress}:
+        raise HTTPException(409, "Materials are locked after job closure")
+    task.materials_cost = payload.materials_cost
+    task.materials_paid_by = payload.materials_paid_by
+    db.commit()
+    db.refresh(task)
+    return task_out(task, user)
+
+
+class CostsInput(MaterialsInput):
+    labor_price: Decimal = Field(gt=0, le=1000000, max_digits=10, decimal_places=2)
+    reason: str = Field(min_length=5, max_length=2000)
+
+
+@router.post("/tasks/{task_id}/costs")
+def record_costs(task_id: uuid.UUID, payload: CostsInput, principal: Principal, db: DbSession):
+    user = principal[0]
+    task = authorized_task(db, task_id, user)
+    if user.role != UserRole.technician:
+        raise HTTPException(403, "Technician action required")
+    if task.revision != payload.expected_revision:
+        raise HTTPException(409, "Task changed; refresh and retry")
+    if task.status not in {TaskStatus.assigned, TaskStatus.in_progress}:
+        raise HTTPException(409, "Costs are locked after job closure")
+    previous = f"labor={task.labor_price}, materials={task.materials_cost}"
+    task.labor_price = payload.labor_price
+    task.materials_cost = payload.materials_cost
+    task.materials_paid_by = payload.materials_paid_by
+    # Keep a record in the existing office-only notes, without another table.
+    stamp = datetime.now(UTC).isoformat()
+    task.internal_notes = (
+        (task.internal_notes or "")
+        + f"\n[Mobile costs {stamp} by {user.id}; previous {previous}; "
+        f"new labor={payload.labor_price}, materials={payload.materials_cost}, "
+        f"payer={payload.materials_paid_by.value}] {payload.reason.strip()}"
+    )
     db.commit()
     db.refresh(task)
     return task_out(task, user)

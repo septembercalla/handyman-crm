@@ -48,6 +48,8 @@ class Totals(BaseModel):
     completed_jobs: int = 0
     scheduled_jobs: int = 0
     payout_not_set: int = 0
+    labor_total: Decimal = Decimal("0.00")
+    materials_total: Decimal = Decimal("0.00")
     job_value: Decimal = Decimal("0.00")
     labor_earnings: Decimal = Decimal("0.00")
     materials_reimbursement: Decimal = Decimal("0.00")
@@ -78,6 +80,8 @@ def sum_jobs(jobs: list[TripJob]) -> dict:
             job.status not in {TaskStatus.done, TaskStatus.cancelled} for job in jobs
         ),
         "payout_not_set": len(completed) - len(known),
+        "labor_total": money(sum((job.labor_price for job in completed), Decimal(0))),
+        "materials_total": money(sum((job.materials_cost for job in completed), Decimal(0))),
         "job_value": money(sum((job.job_value for job in completed), Decimal(0))),
         **{
             field: money(sum((getattr(job, field) for job in known), Decimal(0)))

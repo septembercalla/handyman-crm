@@ -83,6 +83,8 @@ def test_trip_completion_dates_schedule_and_financials(client, db, users):
     assert report["completed_jobs"] == 2
     assert report["scheduled_jobs"] == 1
     assert report["payout_not_set"] == 1
+    assert Decimal(report["labor_total"]) == Decimal("300.01")
+    assert Decimal(report["materials_total"]) == Decimal("20.00")
     assert Decimal(report["job_value"]) == Decimal("320.01")
     assert Decimal(report["labor_earnings"]) == Decimal("60.01")
     assert Decimal(report["total_payout"]) == Decimal("80.01")

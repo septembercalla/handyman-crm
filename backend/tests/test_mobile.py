@@ -260,3 +260,106 @@ def test_web_write_invalidates_mobile_revision(client, db, mobile_data):
     )
     assert stale.status_code == 409
     assert db.get(Task, uuid.UUID(task["id"])).status == TaskStatus.assigned
+
+
+def test_technician_materials_sync_and_permissions(client, db, mobile_data):
+    dispatch, task = task_fixture(client, mobile_data)
+    assigned = client.post(
+        f"/api/v1/mobile/tasks/{task['id']}/assign",
+        headers=headers(dispatch),
+        json={
+            "handyman_id": str(mobile_data["handyman"].id),
+            "expected_revision": task["revision"],
+        },
+    ).json()
+    tech = session(client, "tech@example.com", "synthetic-password")
+    other = session(client, "other@example.com", "synthetic-password")
+    path = f"/api/v1/mobile/tasks/{task['id']}/materials"
+    payload = {
+        "materials_cost": "125.25",
+        "materials_paid_by": "handyman",
+        "expected_revision": assigned["revision"],
+    }
+    assert client.post(path, headers=headers(other), json=payload).status_code == 404
+    assert client.post(path, headers=headers(dispatch), json=payload).status_code == 403
+    assert (
+        client.post(
+            path, headers=headers(tech), json={**payload, "materials_cost": "-1"}
+        ).status_code
+        == 422
+    )
+    assert (
+        client.post(path, headers=headers(tech), json={**payload, "labor_price": "999"}).status_code
+        == 422
+    )
+    saved = client.post(path, headers=headers(tech), json=payload)
+    assert saved.status_code == 200, saved.text
+    value = saved.json()
+    assert value["materials_cost"] == "125.25"
+    assert value["materials_paid_by"] == "handyman"
+    assert value["labor_price"] == "0.00"
+    assert value["revision"] > assigned["revision"]
+    assert client.post(path, headers=headers(tech), json=payload).status_code == 409
+    second_phone = session(client, "tech@example.com", "synthetic-password")
+    assert (
+        client.get(f"/api/v1/mobile/tasks/{task['id']}", headers=headers(second_phone)).json()[
+            "materials_cost"
+        ]
+        == "125.25"
+    )
+    task_row = db.get(Task, uuid.UUID(task["id"]))
+    task_row.status = TaskStatus.done
+    db.commit()
+    payload["expected_revision"] = task_row.revision
+    assert client.post(path, headers=headers(tech), json=payload).status_code == 409
+
+
+def test_costs_preserve_percentage_and_closed_jobs(client, db, mobile_data):
+    dispatch, task = task_fixture(client, mobile_data)
+    assigned = client.post(
+        f"/api/v1/mobile/tasks/{task['id']}/assign",
+        headers=headers(dispatch),
+        json={
+            "handyman_id": str(mobile_data["handyman"].id),
+            "expected_revision": task["revision"],
+        },
+    ).json()
+    tech = session(client, "tech@example.com", "synthetic-password")
+    payload = {
+        "labor_price": "4000",
+        "materials_cost": "1000",
+        "materials_paid_by": "handyman",
+        "reason": "Agreed total includes supplies",
+        "expected_revision": assigned["revision"],
+    }
+    path = f"/api/v1/mobile/tasks/{task['id']}/costs"
+    assert client.post(path, headers=headers(dispatch), json=payload).status_code == 403
+    assert (
+        client.post(
+            path, headers=headers(tech), json={**payload, "handyman_payout_percent": "100"}
+        ).status_code
+        == 422
+    )
+    response = client.post(path, headers=headers(tech), json=payload)
+    assert response.status_code == 200, response.text
+    assert response.json()["labor_price"] == "4000.00"
+    row = db.get(Task, uuid.UUID(task["id"]))
+    assert "Agreed total includes supplies" in row.internal_notes
+    assert row.handyman_payout_percent == mobile_data["handyman"].default_payout_percent
+    assert response.json()["labor_earnings"] == "2400.00"
+    other = session(client, "other@example.com", "synthetic-password")
+    assert client.post(path, headers=headers(other), json=payload).status_code == 404
+    assert (
+        client.post(path, headers=headers(tech), json={**payload, "labor_price": "-1"}).status_code
+        == 422
+    )
+    assert client.post(path, headers=headers(tech), json=payload).status_code == 409
+
+    row.status = TaskStatus.done
+    db.commit()
+    assert (
+        client.post(
+            path, headers=headers(tech), json={**payload, "expected_revision": row.revision}
+        ).status_code
+        == 409
+    )
