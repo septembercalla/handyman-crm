@@ -91,10 +91,11 @@ function exportCsv(trip: Trip) {
       "Customer",
       "Service address",
       "Status",
-      "Job value",
-      "Labor earnings",
+      "Total",
+      "Materials",
+      "Technician pay",
       "Materials reimbursement",
-      "Calculated payout",
+      "Total including reimbursement",
     ],
     ...trip.days.flatMap((day) =>
       day.jobs.map((job) => [
@@ -105,6 +106,7 @@ function exportCsv(trip: Trip) {
         job.service_address,
         job.status,
         job.job_value,
+        job.materials_cost,
         job.labor_earnings ?? "",
         job.materials_reimbursement ?? "",
         job.total_payout ?? "",
@@ -118,6 +120,7 @@ function exportCsv(trip: Trip) {
       "",
       "Completed work only",
       trip.job_value,
+      trip.materials_total ?? "",
       trip.labor_earnings,
       trip.materials_reimbursement,
       trip.total_payout,
@@ -394,30 +397,36 @@ export function WeeklyTrip() {
                     </Link>
                   </div>
                 </div>
-                <Card className="grid grid-cols-2 gap-y-6 p-6 md:grid-cols-3">
-                  <Metric
-                    label="Completed jobs"
-                    value={String(trip.completed_jobs)}
-                    note={`${trip.scheduled_jobs} still scheduled`}
-                  />
-                  <Metric
-                    label="Job value"
-                    value={formatMoney(trip.job_value)}
-                    note="Completed work · incl. materials"
-                  />
-                  <Metric label="Labor total" value={trip.labor_total === undefined ? "—" : formatMoney(trip.labor_total)} note="Customer price for work" />
-                  <Metric label="Materials" value={trip.materials_total === undefined ? "—" : formatMoney(trip.materials_total)} note="Total materials on completed jobs" />
-                  <Metric
-                    label="Labor earnings"
-                    value={formatMoney(trip.labor_earnings)}
-                    note="Worker’s share of labor"
-                    accent
-                  />
-                  <Metric
-                    label="Calculated payout"
-                    value={formatMoney(trip.total_payout)}
-                    note={`Includes ${formatMoney(trip.materials_reimbursement)} materials`}
-                  />
+                <Card className="divide-y divide-line overflow-hidden rounded-lg">
+                  <div className="flex items-center justify-between gap-6 px-6 py-4">
+                    <span className="text-sm text-ink-muted">Total</span>
+                    <span className="text-lg font-semibold tabular-nums">
+                      {formatMoney(trip.job_value)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-6 px-6 py-4">
+                    <span className="text-sm text-ink-muted">Materials</span>
+                    <span className="text-lg font-semibold tabular-nums">
+                      {trip.materials_total === undefined
+                        ? "—"
+                        : formatMoney(trip.materials_total)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-6 px-6 py-4">
+                    <div>
+                      <p className="text-sm font-semibold">Technician pay</p>
+                      <p className="mt-1 text-[11px] text-ink-muted">
+                        (Total − materials) × job percentage
+                      </p>
+                    </div>
+                    <span className="text-xl font-semibold tabular-nums">
+                      {formatMoney(trip.labor_earnings)}
+                    </span>
+                  </div>
+                  <div className="px-6 py-3 text-[11px] text-ink-muted">
+                    {trip.completed_jobs} completed jobs · {trip.scheduled_jobs}{" "}
+                    still scheduled · full week
+                  </div>
                 </Card>
               </div>
               {trip.payout_not_set > 0 && (
@@ -471,8 +480,8 @@ export function WeeklyTrip() {
                         <th className="w-[25%]">Job / work</th>
                         <th className="w-[23%]">Customer / location</th>
                         <th className="w-[140px]">Time / status</th>
-                        <th className="text-right">Job value</th>
-                        <th className="text-right">Labor share</th>
+                        <th className="text-right">Total</th>
+                        <th className="text-right">Technician pay</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -650,12 +659,22 @@ export function WeeklyTrip() {
                   </span>
                 </div>
               </Card>
+              {Number(trip.materials_reimbursement) > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line px-1 pt-3 text-xs text-ink-muted">
+                  <span>
+                    Materials reimbursement · separate from technician pay
+                  </span>
+                  <span className="font-medium tabular-nums">
+                    {formatMoney(trip.materials_reimbursement)}
+                  </span>
+                </div>
+              )}
               <div className="flex items-start gap-2.5 px-1 text-[11px] leading-5 text-ink-muted">
                 <Check className="mt-0.5 size-3.5 shrink-0 text-brand" />
                 <p>
-                  Calculated payout is an estimate owed to the worker, including
-                  eligible materials reimbursement. It does not mean a customer
-                  payment was collected or the worker was paid.
+                  Technician pay is calculated for each completed job as (total
+                  − materials) × its saved payout percentage, then summed for
+                  the week. This is earned pay, not confirmation of payment.
                 </p>
               </div>
             </>
@@ -663,29 +682,5 @@ export function WeeklyTrip() {
         )}
       </div>
     </>
-  );
-}
-
-function Metric({
-  label,
-  value,
-  note,
-  accent = false,
-}: {
-  label: string;
-  value: string;
-  note: string;
-  accent?: boolean;
-}) {
-  return (
-    <div className="min-w-0 px-1 md:px-3">
-      <p className="text-[11px] font-medium text-ink-muted">{label}</p>
-      <p
-        className={`mt-2 text-[25px] font-semibold leading-8 tracking-[-0.8px] tabular-nums ${accent ? "text-brand" : "text-ink"}`}
-      >
-        {value}
-      </p>
-      <p className="mt-1.5 text-[10px] leading-4 text-ink-muted">{note}</p>
-    </div>
   );
 }
